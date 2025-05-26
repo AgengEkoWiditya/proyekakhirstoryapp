@@ -1,5 +1,6 @@
 import routes from '../routes/routes';
 import { getActiveRoute } from '../routes/url-parser';
+import { initPushNotification } from './utils/push-notification.js';
 
 class App {
   #content = null;
@@ -79,3 +80,17 @@ class App {
 }
 
 export default App;
+
+document.addEventListener('DOMContentLoaded', () => {
+  initPushNotification();
+
+if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('/sw.js')
+      .then((registration) => {
+        console.log('Service Worker registered with scope:', registration.scope);
+      })
+      .catch((error) => {
+        console.error('Service Worker registration failed:', error);
+      });
+  }
+});
