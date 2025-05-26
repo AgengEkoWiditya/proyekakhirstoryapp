@@ -3,7 +3,6 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { createPushNotificationButton } from '../../utils/push-notification';
 
-// Fix path ikon Leaflet agar kompatibel dengan Webpack
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
   iconRetinaUrl: require('leaflet/dist/images/marker-icon-2x.png'),
@@ -15,7 +14,7 @@ export default class HomePage {
   async render() {
     return `
       <main id="main-content" class="home-container" tabindex="-1" role="main" aria-label="Home page with stories and map">
-        <h1 class="page-title">Hallow Selamat Datang Di Beranda Story App Eko</h1>
+        <h1 class="page-title">Halo, Selamat Datang di Beranda Story App Eko</h1>
 
         <section aria-label="Push Notification" class="push-container">
           <div id="pushContainer" class="push-button-wrapper"></div>
@@ -27,6 +26,7 @@ export default class HomePage {
 
         <section aria-label="List of stories" class="story-list-container">
           <h2 class="section-title">Stories</h2>
+          <button id="refreshBtn" class="refresh-btn" aria-label="Refresh stories">🔄 Refresh</button>
           <div id="storyList" class="story-list" aria-live="polite" aria-busy="false"></div>
         </section>
       </main>
@@ -37,18 +37,22 @@ export default class HomePage {
     const storyContainer = document.querySelector('#storyList');
     const mapContainer = document.querySelector('#map');
     const pushContainer = document.querySelector('#pushContainer');
-    const mainContent = document.querySelector('#main-content');
+    const refreshBtn = document.querySelector('#refreshBtn');
 
-    if (!storyContainer || !mapContainer || !pushContainer || !mainContent) {
-      console.error('Element #storyList, #map, #pushContainer, or #main-content not found.');
+    if (!storyContainer || !mapContainer || !pushContainer) {
+      console.error('Element yang dibutuhkan tidak ditemukan.');
       return;
     }
 
-    // Tampilkan tombol Push Notification (subscribe/unsubscribe)
+    // Tombol push notification
     const pushButton = createPushNotificationButton();
     pushContainer.appendChild(pushButton);
 
-    // Tampilkan loading indicator
+    // Tombol refresh
+    refreshBtn?.addEventListener('click', () => {
+      this.afterRender();
+    });
+
     storyContainer.setAttribute('aria-busy', 'true');
     storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
 
@@ -62,13 +66,19 @@ export default class HomePage {
 
     const stories = result.listStory;
 
+    if (result.isOffline) {
+      const offlineNotice = document.createElement('p');
+      offlineNotice.className = 'offline-notice';
+      offlineNotice.textContent = result.message || 'Menampilkan data dari cache (offline mode)';
+      storyContainer.prepend(offlineNotice);
+    }
+
     if (!Array.isArray(stories) || stories.length === 0) {
       storyContainer.setAttribute('aria-busy', 'false');
-      storyContainer.innerHTML = '<p>No stories available at the moment.</p>';
+      storyContainer.innerHTML += '<p>No stories available at the moment.</p>';
       return;
     }
 
-    // Initialize map
     const map = L.map(mapContainer).setView([0, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
@@ -96,13 +106,10 @@ export default class HomePage {
       map.fitBounds(group.getBounds().pad(0.2));
     } else if (markers.length === 1) {
       map.setView(markers[0].getLatLng(), 13);
-    } else {
-      map.setView([0, 0], 2);
     }
 
-    // Render daftar story dengan tombol hapus
     storyContainer.setAttribute('aria-busy', 'false');
-    storyContainer.innerHTML = stories.map((story) => `
+    storyContainer.innerHTML += stories.map((story) => `
       <article class="story-item" tabindex="0" aria-label="Story from ${story.name || 'Unknown'}">
         <img src="${story.photoUrl || 'default-photo.png'}" alt="Photo from ${story.name || 'Unknown'}" class="story-img" loading="lazy" />
         <h3 class="story-title">${story.name || 'No Name'}</h3>
@@ -113,7 +120,7 @@ export default class HomePage {
       </article>
     `).join('');
 
-    // Tambahkan event listener tombol hapus
+    // Event hapus
     const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
     deleteButtons.forEach((btn) => {
       btn.addEventListener('click', async (event) => {
@@ -121,7 +128,6 @@ export default class HomePage {
         if (confirm('Yakin ingin menghapus story ini?')) {
           const res = await HomePresenter.deleteStoryById(id);
           alert(res.message);
-          // Refresh ulang daftar cerita setelah hapus
           this.afterRender();
         }
       });
