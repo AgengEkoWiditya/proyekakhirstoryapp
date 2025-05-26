@@ -12,8 +12,13 @@ const HomePresenter = {
       // Ambil dari API
       const stories = await StoryApi.getAllStories(token);
 
-      // Simpan semua ke IndexedDB
-      stories.forEach((story) => IndexedDB.saveStory(story));
+      // Pastikan stories adalah array
+      if (Array.isArray(stories)) {
+        // Simpan semua ke IndexedDB
+        stories.forEach((story) => IndexedDB.saveStory(story));
+      } else {
+        console.warn('Data dari API bukan array:', stories);
+      }
 
       return stories;
     } catch (error) {
@@ -21,7 +26,13 @@ const HomePresenter = {
 
       // Ambil dari IndexedDB jika gagal
       const stories = await IndexedDB.getAllStories();
-      return stories;
+
+      if (Array.isArray(stories)) {
+        return stories;
+      } else {
+        console.error('Data dari IndexedDB bukan array:', stories);
+        return [];
+      }
     }
   },
 };
