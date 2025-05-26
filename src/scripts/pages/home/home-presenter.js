@@ -6,6 +6,7 @@ function mergeStories(offlineStories, cachedStories) {
   const map = new Map();
 
   offlineStories.forEach((story) => map.set(story.id, story));
+  
   cachedStories.forEach((story) => {
     if (!map.has(story.id)) {
       map.set(story.id, story);
@@ -23,21 +24,22 @@ const HomePresenter = {
       return {
         error: true,
         message: 'Token tidak ditemukan. Silakan login ulang.',
+        listStory: [],
       };
     }
 
     try {
-      // Coba fetch data dari API
+      // 1. Coba ambil data dari API
       const response = await StoryApi.getAllStories(token);
       const stories = Array.isArray(response.listStory) ? response.listStory : [];
 
-      // Simpan data server ke IndexedDB sebagai cache
-      await IdbHelper.saveMultipleStories(stories);
+      if (stories.length > 0) {
 
-      // Ambil cerita offline yang belum sinkron
+        await IdbHelper.saveMultipleStories(stories);
+      }
+
       const offlineStories = await IdbHelper.getOfflineStories();
 
-      // Gabungkan tanpa duplikat
       const combinedStories = mergeStories(offlineStories, stories);
 
       return {
@@ -49,11 +51,9 @@ const HomePresenter = {
     } catch (error) {
       console.warn('Fetch API gagal, menggunakan cache:', error.message);
 
-      // Ambil data cache dan offline dari IndexedDB
       const cachedStories = await IdbHelper.getAllStories();
       const offlineStories = await IdbHelper.getOfflineStories();
 
-      // Gabungkan tanpa duplikat
       const combinedStories = mergeStories(offlineStories, cachedStories);
 
       if (combinedStories.length > 0) {
@@ -81,19 +81,18 @@ const HomePresenter = {
         return { error: true, message: 'Token tidak ditemukan. Silakan login ulang.' };
       }
 
-      // Hapus dari server
       const response = await StoryApi.deleteStory(token, id);
 
       if (response.error) {
         return { error: true, message: response.message || 'Gagal menghapus story.' };
       }
 
-      // Hapus juga di IndexedDB (cache & offline)
       await IdbHelper.deleteStory(id);
       await IdbHelper.deleteOfflineStory(id);
 
       return { error: false, message: 'Story berhasil dihapus.' };
     } catch (error) {
+      console.error('Error deleteStoryById:', error);
       return { error: true, message: 'Gagal menghapus story. Coba lagi nanti.' };
     }
   },

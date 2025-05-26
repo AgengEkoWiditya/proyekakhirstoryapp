@@ -3,14 +3,13 @@ import IdbHelper from '../../utils/indexeddb';
 
 const AddStoryPresenter = {
   async submitStory(formData) {
-    try {
-      const token = localStorage.getItem('authToken');
-      const base64 = formData.get('photoData');
-      let photoBlob = null;
+    const token = localStorage.getItem('authToken');
+    let photoBlob = null;
+    let base64Image = formData.get('photoData');
 
-      if (base64) {
-        // Jika base64 sudah lengkap (data:image/jpeg;base64,...) maka fetch berhasil
-        photoBlob = await (await fetch(base64)).blob();
+    try {
+      if (base64Image) {
+        photoBlob = await (await fetch(base64Image)).blob();
         formData.delete('photoData');
         formData.append('photo', photoBlob, 'photo.jpg');
       }
@@ -20,46 +19,54 @@ const AddStoryPresenter = {
 
       if (!response.error && photoBlob) {
         // Ubah Blob jadi base64 lengkap dengan prefix
-        const base64Image = await new Promise((resolve, reject) => {
+        base64Image = await new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () => resolve(reader.result); // ini sudah termasuk prefix data:image/jpeg;base64,...
+          reader.onload = () => resolve(reader.result);
           reader.onerror = () => reject(new Error('Failed to read photo blob'));
           reader.readAsDataURL(photoBlob);
         });
+      }
 
-        const storyData = {
-          id: response.story?.id || `local-${Date.now()}`,
-          name: formData.get('name') || 'Anonim',
-          description: formData.get('description') || '',
-          photoUrl: base64Image,
-          createdAt: new Date().toISOString(),
-          lat: parseFloat(formData.get('lat')) || null,
-          lon: parseFloat(formData.get('lon')) || null,
-        };
+      // Simpan ke IndexedDB, baik saat online maupun offline
+      const storyData = {
+        id: response.story?.id || `local-${Date.now()}`,
+        name: formData.get('name') || 'Anonim',
+        description: formData.get('description') || '',
+        photoUrl: base64Image,
+        createdAt: new Date().toISOString(),
+        lat: parseFloat(formData.get('lat')) || null,
+        lon: parseFloat(formData.get('lon')) || null,
+        isOffline: !!response.error, // tandai apakah offline atau online
+      };
 
-        // Simpan ke IndexedDB (offline cache)
+      if (response.error) {
+        // Jika gagal online, simpan di offline store
+        await IdbHelper.saveOfflineStory(storyData);
+      } else {
+        // Jika sukses, simpan di cache store (bisa juga hapus di offline store jika ada)
         await IdbHelper.putStory(storyData);
+        await IdbHelper.deleteOfflineStory(storyData.id); // bersihkan jika pernah disimpan offline
       }
 
       return response;
     } catch (error) {
-      // Saat gagal (offline), simpan data ke offline store dengan photoUrl lengkap prefix base64
+      // Saat error network, simpan di offline store
       const fallbackId = `local-${Date.now()}`;
-      let photoData = formData.get('photoData') || 'default.jpg';
 
-      // Pastikan base64 offline juga punya prefix 'data:image/jpeg;base64,' jika belum ada
-      if (photoData && !photoData.startsWith('data:image')) {
-        photoData = `data:image/jpeg;base64,${photoData}`;
+      // Pastikan base64 lengkap
+      if (base64Image && !base64Image.startsWith('data:image')) {
+        base64Image = `data:image/jpeg;base64,${base64Image}`;
       }
 
       const storyData = {
         id: fallbackId,
         name: formData.get('name') || 'Anonim',
         description: formData.get('description') || '',
-        photoUrl: photoData,
+        photoUrl: base64Image,
         createdAt: new Date().toISOString(),
         lat: parseFloat(formData.get('lat')) || null,
         lon: parseFloat(formData.get('lon')) || null,
+        isOffline: true,
       };
 
       await IdbHelper.saveOfflineStory(storyData);
