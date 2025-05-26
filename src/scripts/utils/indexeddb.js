@@ -12,6 +12,7 @@ const dbPromise = openDB(DB_NAME, 1, {
 });
 
 const IndexedDB = {
+  // Simpan/Update story ke IndexedDB
   async saveStory(story) {
     try {
       const db = await dbPromise;
@@ -21,22 +22,23 @@ const IndexedDB = {
     }
   },
 
+  // Ambil semua stories dari IndexedDB
   async getAllStories() {
     try {
       const db = await dbPromise;
       const stories = await db.getAll(STORE_NAME);
       return Array.isArray(stories) ? stories : [];
     } catch (error) {
-      console.error('Gagal mengambil semua story dari IndexedDB:', error);
+      console.error('Gagal mengambil story dari IndexedDB:', error);
       return [];
     }
   },
 
+  // Hapus story berdasarkan id
   async deleteStory(id) {
     try {
       const db = await dbPromise;
       await db.delete(STORE_NAME, id);
-      console.log(`Story dengan id ${id} berhasil dihapus dari IndexedDB`);
     } catch (error) {
       console.error('Gagal menghapus story dari IndexedDB:', error);
     }

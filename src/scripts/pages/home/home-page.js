@@ -70,7 +70,6 @@ export default class HomePage {
 
     // Initialize map
     const map = L.map(mapContainer).setView([0, 0], 2);
-
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
     }).addTo(map);
@@ -78,13 +77,13 @@ export default class HomePage {
     const markers = [];
 
     stories.forEach((story) => {
-      if (story.lat && story.lon) {
+      if (story.lat != null && story.lon != null) {
         const marker = L.marker([story.lat, story.lon]).addTo(map);
         const popupContent = `
           <div class="popup-content">
-            <strong>${story.name}</strong><br/>
-            <p>${story.description}</p>
-            <a href="#/story/${story.id}" aria-label="See details of ${story.name}">Details</a>
+            <strong>${story.name || 'No Name'}</strong><br/>
+            <p>${story.description || ''}</p>
+            <a href="#/story/${story.id}" aria-label="See details of ${story.name || 'story'}">Details</a>
           </div>
         `;
         marker.bindPopup(popupContent);
@@ -101,20 +100,31 @@ export default class HomePage {
       map.setView([0, 0], 2);
     }
 
-    // Render daftar story
-    const storyHtml = stories.map((story) => `
-      <article class="story-item" tabindex="0" aria-label="Story from ${story.name}">
-        <img src="${story.photoUrl}" alt="Photo from ${story.name}" class="story-img" loading="lazy" />
-        <h3 class="story-title">${story.name}</h3>
-        <p class="story-description">${story.description}</p>
-        <time datetime="${story.createdAt}" class="story-date">
-          ${new Date(story.createdAt).toLocaleString()}
-        </time>
-        <a href="#/story/${story.id}" class="story-details-link" aria-label="See details of ${story.name}">Read more</a>
+    // Render daftar story dengan tombol hapus
+    storyContainer.setAttribute('aria-busy', 'false');
+    storyContainer.innerHTML = stories.map((story) => `
+      <article class="story-item" tabindex="0" aria-label="Story from ${story.name || 'Unknown'}">
+        <img src="${story.photoUrl || 'default-photo.png'}" alt="Photo from ${story.name || 'Unknown'}" class="story-img" loading="lazy" />
+        <h3 class="story-title">${story.name || 'No Name'}</h3>
+        <p class="story-description">${story.description || ''}</p>
+        <time datetime="${story.createdAt}" class="story-date">${new Date(story.createdAt).toLocaleString()}</time>
+        <a href="#/story/${story.id}" class="story-details-link" aria-label="See details of ${story.name || 'story'}">Read more</a>
+        <button class="delete-btn" data-id="${story.id}" aria-label="Hapus story ${story.name || 'story'}">Hapus</button>
       </article>
     `).join('');
 
-    storyContainer.setAttribute('aria-busy', 'false');
-    storyContainer.innerHTML = storyHtml;
+    // Tambahkan event listener tombol hapus
+    const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
+    deleteButtons.forEach((btn) => {
+      btn.addEventListener('click', async (event) => {
+        const id = event.target.dataset.id;
+        if (confirm('Yakin ingin menghapus story ini?')) {
+          const res = await HomePresenter.deleteStoryById(id);
+          alert(res.message);
+          // Refresh ulang daftar cerita setelah hapus
+          this.afterRender();
+        }
+      });
+    });
   }
 }
