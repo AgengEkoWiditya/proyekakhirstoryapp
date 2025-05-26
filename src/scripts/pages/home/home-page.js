@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-let map;
+let map; // untuk menyimpan instance map global
 
 export default class HomePage {
   async render() {
@@ -48,12 +48,10 @@ export default class HomePage {
 
     // Tombol push notification
     const pushButton = createPushNotificationButton();
-    pushContainer.innerHTML = '';
+    pushContainer.innerHTML = ''; // Clear sebelum append
     pushContainer.appendChild(pushButton);
 
-    // Sinkronisasi cerita offline
-    await HomePresenter.syncOfflineStories();
-
+    // Refresh
     refreshBtn?.addEventListener('click', () => {
       this.afterRender();
     });
@@ -62,7 +60,7 @@ export default class HomePage {
     storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
 
     const result = await HomePresenter.getStories();
-    storyContainer.innerHTML = '';
+    storyContainer.innerHTML = ''; // clear dulu
 
     if (result.error) {
       storyContainer.setAttribute('aria-busy', 'false');
@@ -86,48 +84,38 @@ export default class HomePage {
       return;
     }
 
-    const hasValidLocation = stories.some(story => story.lat != null && story.lon != null);
+    // Bersihkan map lama (jika ada)
+    if (map) {
+      map.remove();
+    }
 
-    if (hasValidLocation && navigator.onLine) {
-      if (map) {
-        map.remove();
+    map = L.map(mapContainer).setView([0, 0], 2);
+    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+      attribution: '&copy; OpenStreetMap contributors',
+    }).addTo(map);
+
+    const markers = [];
+
+    stories.forEach((story) => {
+      if (story.lat != null && story.lon != null) {
+        const marker = L.marker([story.lat, story.lon]).addTo(map);
+        const popupContent = `
+          <div class="popup-content">
+            <strong>${story.name || 'No Name'}</strong><br/>
+            <p>${story.description || ''}</p>
+            <a href="#/story/${story.id}" aria-label="See details of ${story.name || 'story'}">Details</a>
+          </div>
+        `;
+        marker.bindPopup(popupContent);
+        markers.push(marker);
       }
+    });
 
-      map = L.map(mapContainer).setView([0, 0], 2);
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map);
-
-      const markers = [];
-
-      stories.forEach((story) => {
-        if (story.lat != null && story.lon != null) {
-          const marker = L.marker([story.lat, story.lon]).addTo(map);
-          const popupContent = `
-            <div class="popup-content">
-              <strong>${story.name || 'No Name'}</strong><br/>
-              <p>${story.description || ''}</p>
-              <a href="#/story/${story.id}" aria-label="See details of ${story.name || 'story'}">Details</a>
-            </div>
-          `;
-          marker.bindPopup(popupContent);
-          markers.push(marker);
-        }
-      });
-
-      if (markers.length > 1) {
-        const group = L.featureGroup(markers);
-        map.fitBounds(group.getBounds().pad(0.2));
-      } else if (markers.length === 1) {
-        map.setView(markers[0].getLatLng(), 13);
-      }
-    } else {
-      // Offline atau tidak ada lokasi valid
-      mapContainer.innerHTML = `
-        <div class="map-offline-message">
-          ${!navigator.onLine ? 'Anda sedang offline. Map tidak tersedia.' : 'Tidak ada data lokasi untuk ditampilkan di map.'}
-        </div>
-      `;
+    if (markers.length > 1) {
+      const group = L.featureGroup(markers);
+      map.fitBounds(group.getBounds().pad(0.2));
+    } else if (markers.length === 1) {
+      map.setView(markers[0].getLatLng(), 13);
     }
 
     const storyArticles = stories.map((story) => `
@@ -144,6 +132,7 @@ export default class HomePage {
     storyContainer.innerHTML += storyArticles;
     storyContainer.setAttribute('aria-busy', 'false');
 
+    // Event hapus
     const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
     deleteButtons.forEach((btn) => {
       btn.addEventListener('click', async (event) => {
