@@ -1,7 +1,7 @@
 import HomePresenter from './home-presenter';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import createPushNotificationButton from '../../utils/push-notification';
+import { createPushNotificationButton } from '../../utils/push-notification';
 
 // Fix path ikon Leaflet agar kompatibel dengan Webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -16,9 +16,15 @@ export default class HomePage {
     return `
       <main id="main-content" class="home-container" tabindex="-1" role="main" aria-label="Home page with stories and map">
         <h1 class="page-title">Hallow Selamat Datang Di Beranda Story App Eko</h1>
+
+        <section aria-label="Push Notification" class="push-container">
+          <div id="pushContainer" class="push-button-wrapper"></div>
+        </section>
+
         <section aria-label="Map showing story locations">
           <div id="map" class="map-container" role="region" tabindex="0"></div>
         </section>
+
         <section aria-label="List of stories" class="story-list-container">
           <h2 class="section-title">Stories</h2>
           <div id="storyList" class="story-list" aria-live="polite" aria-busy="false"></div>
@@ -30,12 +36,17 @@ export default class HomePage {
   async afterRender() {
     const storyContainer = document.querySelector('#storyList');
     const mapContainer = document.querySelector('#map');
+    const pushContainer = document.querySelector('#pushContainer');
     const mainContent = document.querySelector('#main-content');
 
-    if (!storyContainer || !mapContainer || !mainContent) {
-      console.error('Element #storyList, #map, or #main-content not found.');
+    if (!storyContainer || !mapContainer || !pushContainer || !mainContent) {
+      console.error('Element #storyList, #map, #pushContainer, or #main-content not found.');
       return;
     }
+
+    // Tampilkan tombol Push Notification (subscribe/unsubscribe)
+    const pushButton = createPushNotificationButton();
+    pushContainer.appendChild(pushButton);
 
     // Tampilkan loading indicator
     storyContainer.setAttribute('aria-busy', 'true');
@@ -66,7 +77,7 @@ export default class HomePage {
 
     const markers = [];
 
-    stories.forEach(story => {
+    stories.forEach((story) => {
       if (story.lat && story.lon) {
         const marker = L.marker([story.lat, story.lon]).addTo(map);
         const popupContent = `
@@ -81,7 +92,6 @@ export default class HomePage {
       }
     });
 
-    // Zoom sesuai jumlah marker
     if (markers.length > 1) {
       const group = L.featureGroup(markers);
       map.fitBounds(group.getBounds().pad(0.2));
@@ -92,7 +102,7 @@ export default class HomePage {
     }
 
     // Render daftar story
-    const storyHtml = stories.map(story => `
+    const storyHtml = stories.map((story) => `
       <article class="story-item" tabindex="0" aria-label="Story from ${story.name}">
         <img src="${story.photoUrl}" alt="Photo from ${story.name}" class="story-img" loading="lazy" />
         <h3 class="story-title">${story.name}</h3>
@@ -106,9 +116,5 @@ export default class HomePage {
 
     storyContainer.setAttribute('aria-busy', 'false');
     storyContainer.innerHTML = storyHtml;
-
-    // Tambahkan tombol push notification
-    const pushButton = createPushNotificationButton();
-    mainContent.appendChild(pushButton);
   }
 }
