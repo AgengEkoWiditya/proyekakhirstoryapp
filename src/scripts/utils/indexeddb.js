@@ -1,4 +1,4 @@
-const dbName = 'StoryAppDB';
+const dbName = 'StoryAppDB'; 
 const storeName = 'stories';
 
 const openDB = () => {
@@ -36,6 +36,27 @@ const getAllStories = async () => {
     request.onerror = () => {
       reject('Failed to get all stories');
     };
+  });
+};
+
+// Fungsi tambahan yang dicari: getOfflineStories
+const getOfflineStories = async () => {
+  return getAllStories(); // alias
+};
+
+// Fungsi tambahan yang dicari: saveMultipleStories
+const saveMultipleStories = async (stories) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+
+    stories.forEach((story) => {
+      store.put(story);
+    });
+
+    transaction.oncomplete = () => resolve(true);
+    transaction.onerror = () => reject('Failed to save multiple stories');
   });
 };
 
@@ -77,4 +98,6 @@ export default {
   getAllStories,
   putStory,
   deleteStory,
+  getOfflineStories, 
+  saveMultipleStories,
 };
