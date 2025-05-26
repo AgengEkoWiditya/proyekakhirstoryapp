@@ -9,6 +9,7 @@ const AddStoryPresenter = {
       let photoBlob = null;
 
       if (base64) {
+        // Jika base64 sudah lengkap (data:image/jpeg;base64,...) maka fetch berhasil
         photoBlob = await (await fetch(base64)).blob();
         formData.delete('photoData');
         formData.append('photo', photoBlob, 'photo.jpg');
@@ -18,10 +19,10 @@ const AddStoryPresenter = {
       const response = await StoryApi.addStory(formData, token);
 
       if (!response.error && photoBlob) {
-        // Promisify FileReader agar bisa await
+        // Ubah Blob jadi base64 lengkap dengan prefix
         const base64Image = await new Promise((resolve, reject) => {
           const reader = new FileReader();
-          reader.onload = () => resolve(reader.result);
+          reader.onload = () => resolve(reader.result); // ini sudah termasuk prefix data:image/jpeg;base64,...
           reader.onerror = () => reject(new Error('Failed to read photo blob'));
           reader.readAsDataURL(photoBlob);
         });
@@ -36,18 +37,26 @@ const AddStoryPresenter = {
           lon: parseFloat(formData.get('lon')) || null,
         };
 
+        // Simpan ke IndexedDB (offline cache)
         await IdbHelper.putStory(storyData);
       }
 
       return response;
     } catch (error) {
-      // Simpan lokal saat offline ke offline store
+      // Saat gagal (offline), simpan data ke offline store dengan photoUrl lengkap prefix base64
       const fallbackId = `local-${Date.now()}`;
+      let photoData = formData.get('photoData') || 'default.jpg';
+
+      // Pastikan base64 offline juga punya prefix 'data:image/jpeg;base64,' jika belum ada
+      if (photoData && !photoData.startsWith('data:image')) {
+        photoData = `data:image/jpeg;base64,${photoData}`;
+      }
+
       const storyData = {
         id: fallbackId,
         name: formData.get('name') || 'Anonim',
         description: formData.get('description') || '',
-        photoUrl: formData.get('photoData') || 'default.jpg', // base64 langsung simpan
+        photoUrl: photoData,
         createdAt: new Date().toISOString(),
         lat: parseFloat(formData.get('lat')) || null,
         lon: parseFloat(formData.get('lon')) || null,
