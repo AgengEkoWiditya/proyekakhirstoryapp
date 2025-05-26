@@ -1,7 +1,7 @@
 import HomePresenter from './home-presenter';
+import IdbHelper from '../../utils/indexeddb';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { createPushNotificationButton } from '../../utils/push-notification';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -13,22 +13,15 @@ L.Icon.Default.mergeOptions({
 export default class HomePage {
   async render() {
     return `
-      <main id="main-content" class="home-container" tabindex="-1" role="main" aria-label="Home page with stories and map">
-        <h1 class="page-title">Halo, Selamat Datang di Beranda Story App Eko</h1>
-
-        <section aria-label="Push Notification" class="push-container">
-          <div id="pushContainer" class="push-button-wrapper"></div>
-        </section>
-
-        <section aria-label="Map showing story locations">
-          <div id="map" class="map-container" role="region" tabindex="0"></div>
-        </section>
-
-        <section aria-label="List of stories" class="story-list-container">
-          <h2 class="section-title">Stories</h2>
-          <button id="refreshBtn" class="refresh-btn" aria-label="Refresh stories">🔄 Refresh</button>
-          <div id="storyList" class="story-list" aria-live="polite" aria-busy="false"></div>
-        </section>
+      <main id="main-content" class="home-container" tabindex="-1" role="main">
+        <h1 class="page-title">Berbagi Cerita</h1>
+        <div class="offline-controls">
+          <button id="clearOfflineBtn" class="offline-button danger" aria-label="Hapus semua data offline">
+            🗑️ Hapus Semua Data Offline
+          </button>
+        </div>
+        <div id="map" class="map-container" aria-label="Story locations map" role="region"></div>
+        <div id="storyList" class="story-list"></div>
       </main>
     `;
   }
@@ -36,101 +29,76 @@ export default class HomePage {
   async afterRender() {
     const storyContainer = document.querySelector('#storyList');
     const mapContainer = document.querySelector('#map');
-    const pushContainer = document.querySelector('#pushContainer');
-    const refreshBtn = document.querySelector('#refreshBtn');
+    const clearOfflineBtn = document.querySelector('#clearOfflineBtn');
 
-    if (!storyContainer || !mapContainer || !pushContainer) {
-      console.error('Element yang dibutuhkan tidak ditemukan.');
-      return;
-    }
-
-    // Tombol push notification
-    const pushButton = createPushNotificationButton();
-    pushContainer.appendChild(pushButton);
-
-    // Tombol refresh
-    refreshBtn?.addEventListener('click', () => {
-      this.afterRender();
-    });
-
-    storyContainer.setAttribute('aria-busy', 'true');
-    storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
-
-    const result = await HomePresenter.getStories();
-
-    if (result.error) {
-      storyContainer.setAttribute('aria-busy', 'false');
-      storyContainer.innerHTML = `<p class="error-message">${result.message}</p>`;
-      return;
-    }
-
-    const stories = result.listStory;
-
-    if (result.isOffline) {
-      const offlineNotice = document.createElement('p');
-      offlineNotice.className = 'offline-notice';
-      offlineNotice.textContent = result.message || 'Menampilkan data dari cache (offline mode)';
-      storyContainer.prepend(offlineNotice);
-    }
-
-    if (!Array.isArray(stories) || stories.length === 0) {
-      storyContainer.setAttribute('aria-busy', 'false');
-      storyContainer.innerHTML += '<p>No stories available at the moment.</p>';
-      return;
-    }
-
-    const map = L.map(mapContainer).setView([0, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
-
-    const markers = [];
-
-    stories.forEach((story) => {
-      if (story.lat != null && story.lon != null) {
-        const marker = L.marker([story.lat, story.lon]).addTo(map);
-        const popupContent = `
-          <div class="popup-content">
-            <strong>${story.name || 'No Name'}</strong><br/>
-            <p>${story.description || ''}</p>
-            <a href="#/story/${story.id}" aria-label="See details of ${story.name || 'story'}">Details</a>
-          </div>
-        `;
-        marker.bindPopup(popupContent);
-        markers.push(marker);
+    const renderStories = (stories) => {
+      if (!stories || stories.length === 0) {
+        storyContainer.innerHTML = '<p>Tidak ada story.</p>';
+        return;
       }
-    });
 
-    if (markers.length > 1) {
-      const group = L.featureGroup(markers);
-      map.fitBounds(group.getBounds().pad(0.2));
-    } else if (markers.length === 1) {
-      map.setView(markers[0].getLatLng(), 13);
-    }
+      const storyHtml = stories.map((story) => {
+        const photoSrc = story.photo || story.photoUrl || 'default.jpg';
+        return `
+          <article class="story-item">
+            <img src="${photoSrc}" alt="Photo from ${story.name}" class="story-img" />
+            <h2 class="story-title">${story.name}</h2>
+            <p class="story-description">${story.description}</p>
+            <time datetime="${story.createdAt}" class="story-date">
+              ${new Date(story.createdAt).toLocaleString()}
+            </time>
+          </article>
+        `;
+      }).join('');
+      storyContainer.innerHTML = storyHtml;
+    };
 
-    storyContainer.setAttribute('aria-busy', 'false');
-    storyContainer.innerHTML += stories.map((story) => `
-      <article class="story-item" tabindex="0" aria-label="Story from ${story.name || 'Unknown'}">
-        <img src="${story.photoUrl || 'default-photo.png'}" alt="Photo from ${story.name || 'Unknown'}" class="story-img" loading="lazy" />
-        <h3 class="story-title">${story.name || 'No Name'}</h3>
-        <p class="story-description">${story.description || ''}</p>
-        <time datetime="${story.createdAt}" class="story-date">${new Date(story.createdAt).toLocaleString()}</time>
-        <a href="#/story/${story.id}" class="story-details-link" aria-label="See details of ${story.name || 'story'}">Read more</a>
-        <button class="delete-btn" data-id="${story.id}" aria-label="Hapus story ${story.name || 'story'}">Hapus</button>
-      </article>
-    `).join('');
+    const renderMap = (stories) => {
+      const map = L.map(mapContainer).setView([-2.5, 118], 5);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
 
-    // Event hapus
-    const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
-    deleteButtons.forEach((btn) => {
-      btn.addEventListener('click', async (event) => {
-        const id = event.target.dataset.id;
-        if (confirm('Yakin ingin menghapus story ini?')) {
-          const res = await HomePresenter.deleteStoryById(id);
-          alert(res.message);
-          this.afterRender();
+      stories.forEach((story) => {
+        if (story.lat && story.lon) {
+          L.marker([story.lat, story.lon])
+            .addTo(map)
+            .bindPopup(`<strong>${story.name}</strong><br>${story.description}`);
         }
       });
+    };
+
+    try {
+      const result = await HomePresenter.getStories();
+      if (result.error) {
+        throw new Error(result.message);
+      }
+
+      const stories = result.listStory;
+      renderStories(stories);
+      renderMap(stories);
+    } catch (error) {
+      const offlineStories = await IdbHelper.getAllStories();
+      storyContainer.innerHTML = `<p>Menampilkan data offline karena terjadi kesalahan: ${error.message}</p>`;
+      renderStories(offlineStories);
+      renderMap(offlineStories);
+    }
+
+    clearOfflineBtn.addEventListener('click', async () => {
+      const offlineStories = await IdbHelper.getAllStories();
+      if (offlineStories.length === 0) {
+        alert('Tidak ada data offline untuk dihapus.');
+        return;
+      }
+
+      const confirmDelete = confirm('Apakah Anda yakin ingin menghapus semua data offline?');
+      if (confirmDelete) {
+        for (const story of offlineStories) {
+          await IdbHelper.deleteStory(story.id);
+        }
+        alert('Semua data offline berhasil dihapus.');
+        storyContainer.innerHTML = '<p>Semua data offline telah dihapus.</p>';
+      }
     });
   }
 }
