@@ -8,10 +8,6 @@ const urlsToCache = [
   '/proyekakhirstoryapp/images/logo.png',
 ];
 
-// Tile peta yang sering dipakai (OpenStreetMap)
-// Bisa tambahkan lagi tile URL lain yang kamu gunakan
-const tileUrlPattern = /^https:\/\/[abc]\.tile\.openstreetmap\.org\/.*/;
-
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -32,71 +28,43 @@ self.addEventListener('activate', (event) => {
 });
 
 self.addEventListener('fetch', (event) => {
-  // Abaikan kalau bukan GET
-  if (event.request.method !== 'GET') return;
-
-  const requestUrl = event.request.url;
-
-  // Cache falling back to network untuk API stories
-  if (requestUrl.includes('/v1/stories')) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) =>
-        fetch(event.request)
-          .then((response) => {
-            // Cache hasil response agar bisa fallback saat offline
-            cache.put(event.request, response.clone());
-            return response;
-          })
-          .catch(() => cache.match(event.request))
-      )
-    );
+  // Jika request bukan GET atau bukan origin kita, abaikan
+  if (
+    event.request.method !== 'GET' ||
+    !event.request.url.startsWith(self.location.origin)
+  ) {
     return;
   }
 
-  // Cache falling back to network untuk tile peta
-  if (tileUrlPattern.test(requestUrl)) {
-    event.respondWith(
-      caches.open(CACHE_NAME).then((cache) =>
-        cache.match(event.request).then((cachedResponse) => {
-          return (
-            cachedResponse ||
-            fetch(event.request).then((networkResponse) => {
-              cache.put(event.request, networkResponse.clone());
-              return networkResponse;
-            })
-          );
-        })
-      )
-    );
+  // Jangan cache API request ke /v1/stories, biarkan lewat jaringan supaya di-handle fallback di frontend
+  if (event.request.url.includes('/v1/stories')) {
     return;
   }
 
-  // Cache first untuk file statis dari origin sendiri
-  if (requestUrl.startsWith(self.location.origin)) {
-    event.respondWith(
-      caches.match(event.request).then((cachedResponse) => {
-        return (
-          cachedResponse ||
-          fetch(event.request).then((networkResponse) => {
-            if (
-              !networkResponse ||
-              networkResponse.status !== 200 ||
-              networkResponse.type !== 'basic'
-            ) {
-              return networkResponse;
-            }
-            caches.open(CACHE_NAME).then((cache) => {
-              cache.put(event.request, networkResponse.clone());
-            });
-            return networkResponse;
-          })
-        );
-      })
-    );
-  }
+  // Cache first strategy untuk file statis
+  event.respondWith(
+    caches.match(event.request).then((cachedResponse) => {
+      return cachedResponse || fetch(event.request).then((networkResponse) => {
+        if (
+          !networkResponse ||
+          networkResponse.status !== 200 ||
+          networkResponse.type !== 'basic'
+        ) {
+          return networkResponse;
+        }
+
+        const responseClone = networkResponse.clone();
+        caches.open(CACHE_NAME).then((cache) => {
+          cache.put(event.request, responseClone);
+        });
+
+        return networkResponse;
+      });
+    })
+  );
 });
 
-// Push notification (tetap sama)
+// Push notification tetap sama
 self.addEventListener('push', (event) => {
   let data = {};
 
@@ -113,5 +81,7 @@ self.addEventListener('push', (event) => {
     body: data.body || 'Ada informasi baru dari Story App.',
   };
 
-  event.waitUntil(self.registration.showNotification(title, options));
+  event.waitUntil(
+    self.registration.showNotification(title, options)
+  );
 });
