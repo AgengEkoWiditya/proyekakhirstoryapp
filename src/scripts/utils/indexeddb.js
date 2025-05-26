@@ -98,6 +98,6 @@ export default {
   getAllStories,
   putStory,
   deleteStory,
-  getOfflineStories, 
-  saveMultipleStories,
+  getOfflineStories, // tambahkan ini
+  saveMultipleStories, // tambahkan ini
 };
