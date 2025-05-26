@@ -1,18 +1,11 @@
-const BASE_PATH = '/proyekakhirstoryapp';
-
-const CACHE_NAME = "story-app-cache-v2";
+const CACHE_NAME = 'story-app-v1';
 const urlsToCache = [
-  BASE_PATH + "/",
-  BASE_PATH + "/index.html",
-  BASE_PATH + "/app.bundle.js",
-  BASE_PATH + "/app.css",
-  BASE_PATH + "/manifest.json",
-  BASE_PATH + "/favicon.png",
-  BASE_PATH + "/images/2b3e1faf89f94a483539.png",
-  BASE_PATH + "/images/8f2c4d11474275fbc161.png",
-  BASE_PATH + "/images/416d91365b44e4b4f477.png",
-  BASE_PATH + "/images/680f69f3c2e6b90c1812.png",
-  BASE_PATH + "/images/a0c6cc1401c107b501ef.png",
+  '/proyekakhirstoryapp/',
+  '/proyekakhirstoryapp/index.html',
+  '/proyekakhirstoryapp/app.bundle.js',
+  '/proyekakhirstoryapp/app.css',
+  '/proyekakhirstoryapp/manifest.json',
+  '/proyekakhirstoryapp/images/logo.png',
 ];
 
 self.addEventListener('install', (event) => {
