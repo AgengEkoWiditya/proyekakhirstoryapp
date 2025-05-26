@@ -10,23 +10,20 @@ const HomePresenter = {
 
     try {
       // Ambil dari API
-      const stories = await StoryApi.getAllStories(token);
+      const response = await StoryApi.getAllStories(token);
+      const stories = response.listStory;
 
-      // Pastikan stories adalah array
       if (Array.isArray(stories)) {
-        // Simpan semua ke IndexedDB
         stories.forEach((story) => IndexedDB.saveStory(story));
+        return stories;
       } else {
-        console.warn('Data dari API bukan array:', stories);
+        console.warn('Data listStory bukan array:', stories);
+        return [];
       }
-
-      return stories;
     } catch (error) {
       console.warn('Gagal fetch API, ambil dari IndexedDB:', error.message);
 
-      // Ambil dari IndexedDB jika gagal
       const stories = await IndexedDB.getAllStories();
-
       if (Array.isArray(stories)) {
         return stories;
       } else {
