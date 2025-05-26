@@ -1,6 +1,7 @@
 import HomePresenter from './home-presenter';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import createPushNotificationButton from '../../utils/push-notification';
 
 // Fix path ikon Leaflet agar kompatibel dengan Webpack
 delete L.Icon.Default.prototype._getIconUrl;
@@ -29,9 +30,10 @@ export default class HomePage {
   async afterRender() {
     const storyContainer = document.querySelector('#storyList');
     const mapContainer = document.querySelector('#map');
+    const mainContent = document.querySelector('#main-content');
 
-    if (!storyContainer || !mapContainer) {
-      console.error('Element #storyList or #map not found.');
+    if (!storyContainer || !mapContainer || !mainContent) {
+      console.error('Element #storyList, #map, or #main-content not found.');
       return;
     }
 
@@ -71,7 +73,6 @@ export default class HomePage {
           <div class="popup-content">
             <strong>${story.name}</strong><br/>
             <p>${story.description}</p>
-            <!-- Bisa ganti '#' dengan link ke detail story jika ada -->
             <a href="#/story/${story.id}" aria-label="See details of ${story.name}">Details</a>
           </div>
         `;
@@ -80,7 +81,7 @@ export default class HomePage {
       }
     });
 
-    // Zoom dan fokus ke semua marker kalau ada lebih dari 1, kalau tidak fokus ke marker itu atau default ke dunia
+    // Zoom sesuai jumlah marker
     if (markers.length > 1) {
       const group = L.featureGroup(markers);
       map.fitBounds(group.getBounds().pad(0.2));
@@ -105,5 +106,9 @@ export default class HomePage {
 
     storyContainer.setAttribute('aria-busy', 'false');
     storyContainer.innerHTML = storyHtml;
+
+    // Tambahkan tombol push notification
+    const pushButton = createPushNotificationButton();
+    mainContent.appendChild(pushButton);
   }
 }
