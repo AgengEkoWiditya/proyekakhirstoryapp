@@ -36,12 +36,10 @@ export default class HomePage {
   }
 
   async afterRender() {
-    const storyContainer = document.querySelector('#storyList');
-    const mapContainer = document.querySelector('#map');
     const pushContainer = document.querySelector('#pushContainer');
     const refreshBtn = document.querySelector('#refreshBtn');
 
-    if (!storyContainer || !mapContainer || !pushContainer) {
+    if (!pushContainer) {
       console.error('Element yang dibutuhkan tidak ditemukan.');
       return;
     }
@@ -51,14 +49,24 @@ export default class HomePage {
     pushContainer.innerHTML = ''; // Clear sebelum append
     pushContainer.appendChild(pushButton);
 
-    // Refresh stories dengan debounce sederhana agar tidak terlalu sering reload
+    // Bind event refresh
     refreshBtn?.removeEventListener('click', this._refreshHandler);
     this._refreshHandler = async () => {
-      storyContainer.setAttribute('aria-busy', 'true');
-      storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
-      await this.afterRender();
+      await this.loadStories();
     };
     refreshBtn?.addEventListener('click', this._refreshHandler);
+
+    await this.loadStories();
+  }
+
+  async loadStories() {
+    const storyContainer = document.querySelector('#storyList');
+    const mapContainer = document.querySelector('#map');
+
+    if (!storyContainer || !mapContainer) {
+      console.error('Element yang dibutuhkan tidak ditemukan.');
+      return;
+    }
 
     storyContainer.setAttribute('aria-busy', 'true');
     storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
@@ -66,7 +74,7 @@ export default class HomePage {
     // Ambil stories (online + offline)
     const result = await HomePresenter.getStories();
 
-    storyContainer.innerHTML = ''; // Clear dulu
+    storyContainer.innerHTML = '';
 
     if (result.error) {
       storyContainer.setAttribute('aria-busy', 'false');
@@ -150,7 +158,7 @@ export default class HomePage {
         if (confirm('Yakin ingin menghapus story ini?')) {
           const res = await HomePresenter.deleteStoryById(id);
           alert(res.message);
-          this.afterRender();
+          await this.loadStories();
         }
       });
     });

@@ -13,38 +13,38 @@ self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME)
       .then((cache) => cache.addAll(urlsToCache))
-      .catch((err) => {
-        console.error('Failed to cache during install:', err);
-      })
+      .catch((err) => console.error('Failed to cache during install:', err))
   );
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil(
-    caches.keys().then((cacheNames) => {
-      return Promise.all(
-        cacheNames.map((cache) => {
-          if (cache !== CACHE_NAME) {
-            return caches.delete(cache);
-          }
-        })
-      );
-    }).then(() => self.clients.claim())
+    caches.keys().then((cacheNames) =>
+      Promise.all(
+        cacheNames.map((cache) => (cache !== CACHE_NAME ? caches.delete(cache) : null))
+      )
+    ).then(() => self.clients.claim())
   );
 });
 
 self.addEventListener('fetch', (event) => {
+  // Jika request bukan GET atau bukan origin kita, abaikan
   if (
     event.request.method !== 'GET' ||
-    event.request.url.startsWith('chrome-extension') ||
     !event.request.url.startsWith(self.location.origin)
   ) {
     return;
   }
 
+  // Jangan cache API request ke /v1/stories, biarkan lewat jaringan supaya di-handle fallback di frontend
+  if (event.request.url.includes('/v1/stories')) {
+    return;
+  }
+
+  // Cache first strategy untuk file statis
   event.respondWith(
-    caches.match(event.request).then((response) => {
-      return response || fetch(event.request).then((networkResponse) => {
+    caches.match(event.request).then((cachedResponse) => {
+      return cachedResponse || fetch(event.request).then((networkResponse) => {
         if (
           !networkResponse ||
           networkResponse.status !== 200 ||
@@ -53,9 +53,9 @@ self.addEventListener('fetch', (event) => {
           return networkResponse;
         }
 
-        const cloned = networkResponse.clone();
+        const responseClone = networkResponse.clone();
         caches.open(CACHE_NAME).then((cache) => {
-          cache.put(event.request, cloned);
+          cache.put(event.request, responseClone);
         });
 
         return networkResponse;
@@ -64,6 +64,7 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
+// Push notification tetap sama
 self.addEventListener('push', (event) => {
   let data = {};
 

@@ -1,6 +1,7 @@
-import StoryApi from '../../data/story-api'; 
-import IdbHelper from '../../utils/indexeddb'; 
+import StoryApi from '../../data/story-api';
+import IdbHelper from '../../utils/indexeddb';
 
+// Fungsi gabungkan cerita offline dan cached tanpa duplikat (berdasarkan id)
 function mergeStories(offlineStories, cachedStories) {
   const map = new Map();
 
@@ -30,7 +31,7 @@ const HomePresenter = {
       const response = await StoryApi.getAllStories(token);
       const stories = Array.isArray(response.listStory) ? response.listStory : [];
 
-      // Simpan data server ke IndexedDB (cache)
+      // Simpan data server ke IndexedDB sebagai cache
       await IdbHelper.saveMultipleStories(stories);
 
       // Ambil cerita offline yang belum sinkron
@@ -80,15 +81,16 @@ const HomePresenter = {
         return { error: true, message: 'Token tidak ditemukan. Silakan login ulang.' };
       }
 
+      // Hapus dari server
       const response = await StoryApi.deleteStory(token, id);
 
       if (response.error) {
         return { error: true, message: response.message || 'Gagal menghapus story.' };
       }
 
-      // Hapus juga di IndexedDB
+      // Hapus juga di IndexedDB (cache & offline)
       await IdbHelper.deleteStory(id);
-      await IdbHelper.deleteOfflineStory(id); // hapus juga dari offline store jika ada
+      await IdbHelper.deleteOfflineStory(id);
 
       return { error: false, message: 'Story berhasil dihapus.' };
     } catch (error) {
