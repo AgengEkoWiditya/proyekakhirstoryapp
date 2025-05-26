@@ -1,12 +1,10 @@
 import StoryApi from '../../data/story-api';
 import IdbHelper from '../../utils/indexeddb';
 
-// Fungsi gabungkan cerita offline dan cached tanpa duplikat (berdasarkan id)
 function mergeStories(offlineStories, cachedStories) {
   const map = new Map();
 
   offlineStories.forEach((story) => map.set(story.id, story));
-  
   cachedStories.forEach((story) => {
     if (!map.has(story.id)) {
       map.set(story.id, story);
@@ -29,12 +27,13 @@ const HomePresenter = {
     }
 
     try {
-      // 1. Coba ambil data dari API
       const response = await StoryApi.getAllStories(token);
+
+      if (response.error) throw new Error(response.message);
+
       const stories = Array.isArray(response.listStory) ? response.listStory : [];
 
       if (stories.length > 0) {
-
         await IdbHelper.saveMultipleStories(stories);
       }
 
