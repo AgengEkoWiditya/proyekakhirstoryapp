@@ -51,10 +51,9 @@ export default class HomePage {
     pushContainer.innerHTML = '';
     pushContainer.appendChild(pushButton);
 
-    // Sinkronisasi cerita offline sebelum fetch
+    // Sinkronisasi cerita offline
     await HomePresenter.syncOfflineStories();
 
-    // Tombol refresh
     refreshBtn?.addEventListener('click', () => {
       this.afterRender();
     });
@@ -68,12 +67,10 @@ export default class HomePage {
     if (result.error) {
       storyContainer.setAttribute('aria-busy', 'false');
       storyContainer.innerHTML = `<p class="error-message">${result.message}</p>`;
-      // Tetap tampilkan peta kosong agar user tahu ada peta
-      this.initMap([]);
       return;
     }
 
-    const stories = Array.isArray(result.listStory) ? result.listStory : [];
+    const stories = result.listStory;
 
     if (result.isOffline) {
       const offlineNotice = document.createElement('p');
@@ -83,16 +80,55 @@ export default class HomePage {
       storyContainer.appendChild(offlineNotice);
     }
 
-    if (stories.length === 0) {
+    if (!Array.isArray(stories) || stories.length === 0) {
       storyContainer.setAttribute('aria-busy', 'false');
       storyContainer.innerHTML += '<p>No stories available at the moment.</p>';
-      // Tampilkan peta kosong juga
-      this.initMap([]);
       return;
     }
 
-    // Inisialisasi peta dan marker berdasarkan stories
-    this.initMap(stories);
+    const hasValidLocation = stories.some(story => story.lat != null && story.lon != null);
+
+    if (hasValidLocation && navigator.onLine) {
+      if (map) {
+        map.remove();
+      }
+
+      map = L.map(mapContainer).setView([0, 0], 2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+
+      const markers = [];
+
+      stories.forEach((story) => {
+        if (story.lat != null && story.lon != null) {
+          const marker = L.marker([story.lat, story.lon]).addTo(map);
+          const popupContent = `
+            <div class="popup-content">
+              <strong>${story.name || 'No Name'}</strong><br/>
+              <p>${story.description || ''}</p>
+              <a href="#/story/${story.id}" aria-label="See details of ${story.name || 'story'}">Details</a>
+            </div>
+          `;
+          marker.bindPopup(popupContent);
+          markers.push(marker);
+        }
+      });
+
+      if (markers.length > 1) {
+        const group = L.featureGroup(markers);
+        map.fitBounds(group.getBounds().pad(0.2));
+      } else if (markers.length === 1) {
+        map.setView(markers[0].getLatLng(), 13);
+      }
+    } else {
+      // Offline atau tidak ada lokasi valid
+      mapContainer.innerHTML = `
+        <div class="map-offline-message">
+          ${!navigator.onLine ? 'Anda sedang offline. Map tidak tersedia.' : 'Tidak ada data lokasi untuk ditampilkan di map.'}
+        </div>
+      `;
+    }
 
     const storyArticles = stories.map((story) => `
       <article class="story-item" tabindex="0" aria-label="Story from ${story.name || 'Unknown'}">
@@ -119,52 +155,5 @@ export default class HomePage {
         }
       });
     });
-  }
-
-  initMap(stories) {
-    // Hapus peta lama jika ada
-    if (map) {
-      map.remove();
-    }
-
-    map = L.map('map').setView([0, 0], 2);
-
-    // Coba load tile layer, jika gagal (offline), tangani error tanpa crash
-    try {
-      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-        attribution: '&copy; OpenStreetMap contributors',
-      }).addTo(map);
-    } catch (e) {
-      console.warn('Gagal load tile layer. Mungkin offline.', e);
-    }
-
-    const markers = [];
-
-    stories.forEach((story) => {
-      // Pastikan lat dan lon valid (bukan undefined/null)
-      if (typeof story.lat === 'number' && typeof story.lon === 'number') {
-        const marker = L.marker([story.lat, story.lon]).addTo(map);
-        const popupContent = `
-          <div class="popup-content">
-            <strong>${story.name || 'No Name'}</strong><br/>
-            <p>${story.description || ''}</p>
-            <a href="#/story/${story.id}" aria-label="See details of ${story.name || 'story'}">Details</a>
-          </div>
-        `;
-        marker.bindPopup(popupContent);
-        markers.push(marker);
-      }
-    });
-
-    // Jika ada marker, zoom dan fit ke marker
-    if (markers.length > 1) {
-      const group = L.featureGroup(markers);
-      map.fitBounds(group.getBounds().pad(0.2));
-    } else if (markers.length === 1) {
-      map.setView(markers[0].getLatLng(), 13);
-    } else {
-      // Jika tidak ada marker, set posisi default supaya peta tetap muncul
-      map.setView([0, 0], 2);
-    }
   }
 }
