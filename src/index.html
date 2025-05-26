@@ -1,49 +1,56 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="id">
-  <head>
-    <meta http-equiv="Content-Type" content="text/html;charset=UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#2196f3" />
-    <link rel="shortcut icon" href="favicon.png" />
-    <link rel="manifest" href="/manifest.json" />
-    
-    <title>StoryApp</title>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <meta name="theme-color" content="#2196f3" />
 
-    <script>
-      if ('serviceWorker' in navigator) {
-        window.addEventListener('load', () => {
-          navigator.serviceWorker.register('/sw.js');
-        });
-      }
-    </script>
-  </head>
-  <body>
-    <a href="#main-content" class="skip-link">Lewati ke konten utama</a>
+  <!-- ✅ Gunakan path relatif -->
+  <link rel="shortcut icon" href="./favicon.png" />
+  <link rel="manifest" href="./manifest.json" />
 
-    <header>
-      <div class="main-header container">
-        <a class="brand-name" href="#/">StoryApp</a>
+  <title>StoryApp</title>
 
-        <nav id="navigation-drawer" class="navigation-drawer" role="navigation">
-          <ul id="nav-list" class="nav-list">
-            <li><a href="#/">Beranda</a></li>
-            <li><a href="#/add">Buat Cerita</a></li>
-            <li><a href="#/about">Tentang</a></li>
-            <li><a href="#" id="logoutBtn">Keluar</a></li>
-          </ul>
-        </nav>
+  <!-- ✅ Gunakan path relatif untuk sw.js -->
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js')
+          .then(reg => console.log('Service Worker registered', reg))
+          .catch(err => console.error('Service Worker failed', err));
+      });
+    }
+  </script>
 
-        <button id="drawer-button" class="drawer-button" aria-label="Buka menu navigasi">☰</button>
-      </div>
-    </header>
+  <!-- ✅ Gunakan path relatif -->
+  <script defer="defer" src="./app.bundle.js"></script>
+  <link href="./app.css" rel="stylesheet" />
+</head>
+<body>
+  <a href="#main-content" class="skip-link">Lewati ke konten utama</a>
 
-    <main id="main-content" class="main-content" tabindex="-1"></main>
+  <header>
+    <div class="main-header container">
+      <a class="brand-name" href="#/">StoryApp</a>
+      <nav id="navigation-drawer" class="navigation-drawer" role="navigation">
+        <ul id="nav-list" class="nav-list">
+          <li><a href="#/">Beranda</a></li>
+          <li><a href="#/add">Buat Cerita</a></li>
+          <li><a href="#/about">Tentang</a></li>
+          <li><a href="#" id="logoutBtn">Keluar</a></li>
+        </ul>
+      </nav>
+      <button id="drawer-button" class="drawer-button" aria-label="Buka menu navigasi">☰</button>
+    </div>
+  </header>
 
-    <footer role="contentinfo">
-      <div class="footer-inline">
-        <div class="footer-brand">© 2025 <strong>StoryApp</strong></div>
-        <div class="footer-author">Dikembangkan oleh Ageng Eko Widitya</div>
-      </div>
-    </footer>
-  </body>
+  <main id="main-content" class="main-content" tabindex="-1"></main>
+
+  <footer role="contentinfo">
+    <div class="footer-inline">
+      <div class="footer-brand">© 2025 <strong>StoryApp</strong></div>
+      <div class="footer-author">Dikembangkan oleh Ageng Eko Widitya</div>
+    </div>
+  </footer>
+</body>
 </html>
