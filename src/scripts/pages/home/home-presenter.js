@@ -16,8 +16,8 @@ const HomePresenter = {
       const stories = response.listStory || [];
 
       if (Array.isArray(stories)) {
-        // Simpan semua ke IndexedDB
-        stories.forEach((story) => IndexedDB.saveStory(story));
+        // Simpan semua ke IndexedDB (gunakan Promise.all agar semua tersimpan sebelum lanjut)
+        await Promise.all(stories.map((story) => IndexedDB.saveStory(story)));
         return { error: false, listStory: stories };
       } else {
         console.warn('Data dari API bukan array:', response);

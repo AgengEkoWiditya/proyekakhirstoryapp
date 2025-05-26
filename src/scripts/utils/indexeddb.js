@@ -35,7 +35,8 @@ const IndexedDB = {
   async deleteStory(id) {
     try {
       const db = await dbPromise;
-      return db.delete(STORE_NAME, id);
+      await db.delete(STORE_NAME, id);
+      console.log(`Story dengan id ${id} berhasil dihapus dari IndexedDB`);
     } catch (error) {
       console.error('Gagal menghapus story dari IndexedDB:', error);
     }
