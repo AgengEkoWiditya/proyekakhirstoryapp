@@ -85,7 +85,7 @@ document.addEventListener('DOMContentLoaded', () => {
   initPushNotification();
 
 if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.register('/proyekakhirstoryapp/sw.js')
+    navigator.serviceWorker.register('/sw.js')
       .then((registration) => {
         console.log('Service Worker registered with scope:', registration.scope);
       })
