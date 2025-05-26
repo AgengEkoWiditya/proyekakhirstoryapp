@@ -8,7 +8,6 @@ const urlsToCache = [
   '/proyekakhirstoryapp/images/logo.png',
 ];
 
-// Install: cache static assets
 self.addEventListener('install', (event) => {
   self.skipWaiting();
   event.waitUntil(
@@ -20,7 +19,6 @@ self.addEventListener('install', (event) => {
   );
 });
 
-// Activate: clean up old caches
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
@@ -35,37 +33,15 @@ self.addEventListener('activate', (event) => {
   );
 });
 
-// Fetch: serve from cache, then network fallback
 self.addEventListener('fetch', (event) => {
   if (
     event.request.method !== 'GET' ||
-    event.request.url.startsWith('chrome-extension')
+    event.request.url.startsWith('chrome-extension') ||
+    !event.request.url.startsWith(self.location.origin)
   ) {
     return;
   }
 
-  // Tambahan: cache tile dari OpenStreetMap
-  const isOSMTile = event.request.url.includes('https://{s}.tile.openstreetmap.org') ||
-                    event.request.url.includes('https://tile.openstreetmap.org') ||
-                    event.request.url.match(/https:\/\/[abc]\.tile\.openstreetmap\.org/);
-
-  if (isOSMTile) {
-    event.respondWith(
-      caches.open('osm-tiles').then((cache) => {
-        return cache.match(event.request).then((response) => {
-          return response || fetch(event.request).then((networkResponse) => {
-            cache.put(event.request, networkResponse.clone());
-            return networkResponse;
-          }).catch(() => {
-            // Optional fallback image/tile
-          });
-        });
-      })
-    );
-    return;
-  }
-
-  // Default fetch for app resources
   event.respondWith(
     caches.match(event.request).then((response) => {
       return response || fetch(event.request).then((networkResponse) => {
@@ -88,7 +64,6 @@ self.addEventListener('fetch', (event) => {
   );
 });
 
-// Push notification support
 self.addEventListener('push', (event) => {
   let data = {};
 
