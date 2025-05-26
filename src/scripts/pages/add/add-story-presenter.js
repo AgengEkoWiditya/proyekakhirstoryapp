@@ -8,7 +8,6 @@ const AddStoryPresenter = {
       const base64 = formData.get('photoData');
       let photoBlob = null;
 
-      // Ubah base64 ke Blob jika ada
       if (base64) {
         photoBlob = await (await fetch(base64)).blob();
         formData.delete('photoData');
@@ -18,30 +17,31 @@ const AddStoryPresenter = {
       // Kirim ke server
       const response = await StoryApi.addStory(formData, token);
 
-      // Simpan ke IndexedDB jika berhasil dan ada foto
       if (!response.error && photoBlob) {
-        const reader = new FileReader();
-        reader.onload = async function () {
-          const base64Image = reader.result;
+        // Promisify FileReader agar bisa await
+        const base64Image = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = () => reject(new Error('Failed to read photo blob'));
+          reader.readAsDataURL(photoBlob);
+        });
 
-          const storyData = {
-            id: response.story?.id || `local-${Date.now()}`, // Ambil ID dari server jika tersedia
-            name: formData.get('name') || 'Anonim',
-            description: formData.get('description') || '',
-            photoUrl: base64Image,
-            createdAt: new Date().toISOString(),
-            lat: parseFloat(formData.get('lat')) || null,
-            lon: parseFloat(formData.get('lon')) || null,
-          };
-
-          await IdbHelper.putStory(storyData);
+        const storyData = {
+          id: response.story?.id || `local-${Date.now()}`,
+          name: formData.get('name') || 'Anonim',
+          description: formData.get('description') || '',
+          photoUrl: base64Image,
+          createdAt: new Date().toISOString(),
+          lat: parseFloat(formData.get('lat')) || null,
+          lon: parseFloat(formData.get('lon')) || null,
         };
-        reader.readAsDataURL(photoBlob);
+
+        await IdbHelper.putStory(storyData);
       }
 
       return response;
     } catch (error) {
-      // Jika gagal, tetap simpan ke IndexedDB untuk mode offline
+      // Simpan lokal saat offline
       const fallbackId = `local-${Date.now()}`;
       const storyData = {
         id: fallbackId,

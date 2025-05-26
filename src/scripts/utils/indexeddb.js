@@ -1,69 +1,80 @@
-// idb-helper.js
-import { openDB } from 'idb';
+const dbName = 'StoryAppDB';
+const storeName = 'stories';
 
-const DB_NAME = 'story-app-db';
-const DB_VERSION = 1;
-const STORE_NAME = 'stories';
+const openDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName, 1);
 
-const dbPromise = openDB(DB_NAME, DB_VERSION, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains(STORE_NAME)) {
-      db.createObjectStore(STORE_NAME, { keyPath: 'id' });
-    }
-  },
-});
-
-const IdbHelper = {
-  async getAllStories() {
-    return (await dbPromise).getAll(STORE_NAME);
-  },
-
-  async getStory(id) {
-    return (await dbPromise).get(STORE_NAME, id);
-  },
-
-  async putStory(story) {
-    if (!story.id) return;
-
-    const completeStory = {
-      id: story.id,
-      name: story.name || 'Anonim',
-      description: story.description || '',
-      createdAt: story.createdAt || new Date().toISOString(),
-      photoUrl: story.photoUrl || story.photo || 'default.jpg',
-      lat: typeof story.lat === 'number' ? story.lat : null,
-      lon: typeof story.lon === 'number' ? story.lon : null,
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
+      if (!db.objectStoreNames.contains(storeName)) {
+        db.createObjectStore(storeName, { keyPath: 'id' });
+      }
     };
 
-    return (await dbPromise).put(STORE_NAME, completeStory);
-  },
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
 
-  async saveMultipleStories(stories) {
-    if (!Array.isArray(stories)) return;
-
-    const db = await dbPromise;
-    const tx = db.transaction(STORE_NAME, 'readwrite');
-
-    for (const story of stories) {
-      const completeStory = {
-        id: story.id,
-        name: story.name || 'Anonim',
-        description: story.description || '',
-        createdAt: story.createdAt || new Date().toISOString(),
-        photoUrl: story.photoUrl || story.photo || 'default.jpg',
-        lat: typeof story.lat === 'number' ? story.lat : null,
-        lon: typeof story.lon === 'number' ? story.lon : null,
-      };
-
-      await tx.store.put(completeStory);
-    }
-
-    await tx.done;
-  },
-
-  async deleteStory(id) {
-    return (await dbPromise).delete(STORE_NAME, id);
-  },
+    request.onerror = () => {
+      reject('Failed to open IndexedDB');
+    };
+  });
 };
 
-export default IdbHelper;
+const getAllStories = async () => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readonly');
+    const store = transaction.objectStore(storeName);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject('Failed to get all stories');
+    };
+  });
+};
+
+const putStory = async (story) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    const request = store.put(story);
+
+    request.onsuccess = () => {
+      resolve(true);
+    };
+
+    request.onerror = () => {
+      reject('Failed to put story');
+    };
+  });
+};
+
+const deleteStory = async (id) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeName, 'readwrite');
+    const store = transaction.objectStore(storeName);
+    const request = store.delete(id);
+
+    request.onsuccess = () => {
+      resolve(true);
+    };
+
+    request.onerror = () => {
+      reject('Failed to delete story');
+    };
+  });
+};
+
+export default {
+  getAllStories,
+  putStory,
+  deleteStory,
+};

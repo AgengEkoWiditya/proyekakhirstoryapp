@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-let map; // untuk menyimpan instance map global
+let map;
 
 export default class HomePage {
   async render() {
@@ -48,10 +48,13 @@ export default class HomePage {
 
     // Tombol push notification
     const pushButton = createPushNotificationButton();
-    pushContainer.innerHTML = ''; // Clear sebelum append
+    pushContainer.innerHTML = '';
     pushContainer.appendChild(pushButton);
 
-    // Refresh
+    // Sinkronisasi cerita offline sebelum fetch
+    await HomePresenter.syncOfflineStories();
+
+    // Tombol refresh
     refreshBtn?.addEventListener('click', () => {
       this.afterRender();
     });
@@ -60,7 +63,7 @@ export default class HomePage {
     storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
 
     const result = await HomePresenter.getStories();
-    storyContainer.innerHTML = ''; // clear dulu
+    storyContainer.innerHTML = '';
 
     if (result.error) {
       storyContainer.setAttribute('aria-busy', 'false');
@@ -84,7 +87,6 @@ export default class HomePage {
       return;
     }
 
-    // Bersihkan map lama (jika ada)
     if (map) {
       map.remove();
     }
@@ -132,7 +134,6 @@ export default class HomePage {
     storyContainer.innerHTML += storyArticles;
     storyContainer.setAttribute('aria-busy', 'false');
 
-    // Event hapus
     const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
     deleteButtons.forEach((btn) => {
       btn.addEventListener('click', async (event) => {
