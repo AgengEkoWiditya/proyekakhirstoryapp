@@ -1,5 +1,5 @@
 import StoryApi from '../../data/story-api';
-import IndexedDB from '../../utils/indexeddb';
+import IdbHelper from '../../utils/indexeddb';
 
 const HomePresenter = {
   async getStories() {
@@ -9,32 +9,38 @@ const HomePresenter = {
     }
 
     try {
-      // Ambil dari API
+      // Ambil data dari API
       const response = await StoryApi.getAllStories(token);
-
-      // Asumsikan response mengandung listStory sebagai array cerita
       const stories = response.listStory || [];
 
-      if (Array.isArray(stories)) {
-        // Simpan semua ke IndexedDB (gunakan Promise.all agar semua tersimpan sebelum lanjut)
-        await Promise.all(stories.map((story) => IndexedDB.saveStory(story)));
-        return { error: false, listStory: stories };
-      } else {
-        console.warn('Data dari API bukan array:', response);
+      if (!Array.isArray(stories)) {
         return { error: true, message: 'Data dari API tidak valid' };
       }
+
+      // Simpan semua story ke IndexedDB
+      await Promise.all(stories.map((story) => IdbHelper.putStory(story)));
+
+      return { error: false, listStory: stories };
     } catch (error) {
+      // Gagal fetch API => ambil dari IndexedDB
       console.warn('Gagal fetch API, ambil dari IndexedDB:', error.message);
+      const stories = await IdbHelper.getAllStories();
+      return {
+        error: false,
+        listStory: stories,
+        isOffline: true,
+        message: 'Menampilkan data dari cache (offline mode)',
+      };
+    }
+  },
 
-      // Ambil dari IndexedDB jika gagal
-      const stories = await IndexedDB.getAllStories();
-
-      if (Array.isArray(stories)) {
-        return { error: false, listStory: stories };
-      } else {
-        console.error('Data dari IndexedDB bukan array:', stories);
-        return { error: true, message: 'Data dari IndexedDB tidak valid' };
-      }
+  async deleteStoryById(id) {
+    try {
+      await IdbHelper.deleteStory(id);
+      return { error: false, message: 'Story berhasil dihapus dari cache (IndexedDB)' };
+    } catch (error) {
+      console.error('Gagal menghapus story dari IndexedDB:', error);
+      return { error: true, message: 'Gagal menghapus story dari IndexedDB' };
     }
   },
 };
