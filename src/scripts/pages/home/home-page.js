@@ -10,7 +10,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-let map; // untuk menyimpan instance map global
+let map; // Instance global map
 
 export default class HomePage {
   async render() {
@@ -46,16 +46,29 @@ export default class HomePage {
       return;
     }
 
-    // Tombol push notification
+    // Push Notification button
     const pushButton = createPushNotificationButton();
-    pushContainer.innerHTML = ''; // Clear sebelum append
+    pushContainer.innerHTML = '';
     pushContainer.appendChild(pushButton);
 
-    // Refresh
-    refreshBtn?.addEventListener('click', () => {
-      this.afterRender();
-    });
+    // Set event refresh
+    refreshBtn.removeEventListener('click', this.loadStories); // hapus dulu jika ada (jika bind)
+    refreshBtn.addEventListener('click', () => this.loadStories());
 
+    // Initialize map (buat sekali saja)
+    if (!map) {
+      map = L.map(mapContainer).setView([0, 0], 2);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+        attribution: '&copy; OpenStreetMap contributors',
+      }).addTo(map);
+    }
+
+    // Load stories pertama kali
+    await this.loadStories();
+  }
+
+  async loadStories() {
+    const storyContainer = document.querySelector('#storyList');
     storyContainer.setAttribute('aria-busy', 'true');
     storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
 
@@ -81,21 +94,15 @@ export default class HomePage {
     if (!Array.isArray(stories) || stories.length === 0) {
       storyContainer.setAttribute('aria-busy', 'false');
       storyContainer.innerHTML += '<p>No stories available at the moment.</p>';
+      this.resetMapView();
       return;
     }
 
-    // Bersihkan map lama (jika ada)
-    if (map) {
-      map.remove();
-    }
+    // Bersihkan semua marker lama dari map
+    this.clearMapMarkers();
 
-    map = L.map(mapContainer).setView([0, 0], 2);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors',
-    }).addTo(map);
-
+    // Tambah marker baru
     const markers = [];
-
     stories.forEach((story) => {
       if (story.lat != null && story.lon != null) {
         const marker = L.marker([story.lat, story.lon]).addTo(map);
@@ -111,13 +118,17 @@ export default class HomePage {
       }
     });
 
+    // Atur view map
     if (markers.length > 1) {
       const group = L.featureGroup(markers);
       map.fitBounds(group.getBounds().pad(0.2));
     } else if (markers.length === 1) {
       map.setView(markers[0].getLatLng(), 13);
+    } else {
+      this.resetMapView();
     }
 
+    // Render list stories
     const storyArticles = stories.map((story) => `
       <article class="story-item" tabindex="0" aria-label="Story from ${story.name || 'Unknown'}">
         <img src="${story.photoUrl || 'default-photo.png'}" alt="Photo from ${story.name || 'Unknown'}" class="story-img" loading="lazy" />
@@ -132,17 +143,33 @@ export default class HomePage {
     storyContainer.innerHTML += storyArticles;
     storyContainer.setAttribute('aria-busy', 'false');
 
-    // Event hapus
-    const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
-    deleteButtons.forEach((btn) => {
-      btn.addEventListener('click', async (event) => {
+    // Event hapus dengan event delegation (agar tidak duplicate listener)
+    storyContainer.removeEventListener('click', this.handleDeleteClick);
+    this.handleDeleteClick = async (event) => {
+      if (event.target.classList.contains('delete-btn')) {
         const id = event.target.dataset.id;
         if (confirm('Yakin ingin menghapus story ini?')) {
           const res = await HomePresenter.deleteStoryById(id);
           alert(res.message);
-          this.afterRender();
+          await this.loadStories();
         }
-      });
+      }
+    };
+    storyContainer.addEventListener('click', this.handleDeleteClick);
+  }
+
+  clearMapMarkers() {
+    if (!map) return;
+    map.eachLayer((layer) => {
+      if (layer instanceof L.Marker) {
+        map.removeLayer(layer);
+      }
     });
+  }
+
+  resetMapView() {
+    if (map) {
+      map.setView([0, 0], 2);
+    }
   }
 }

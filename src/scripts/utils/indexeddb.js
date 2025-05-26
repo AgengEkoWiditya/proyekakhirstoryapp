@@ -1,5 +1,8 @@
-const dbName = 'StoryAppDB'; 
-const storeName = 'stories';
+const dbName = 'StoryAppDB';
+const storeNames = {
+  stories: 'stories',
+  offline: 'offline-stories',
+};
 
 const openDB = () => {
   return new Promise((resolve, reject) => {
@@ -7,8 +10,15 @@ const openDB = () => {
 
     request.onupgradeneeded = (event) => {
       const db = event.target.result;
-      if (!db.objectStoreNames.contains(storeName)) {
-        db.createObjectStore(storeName, { keyPath: 'id' });
+
+      // Store untuk cerita dari server
+      if (!db.objectStoreNames.contains(storeNames.stories)) {
+        db.createObjectStore(storeNames.stories, { keyPath: 'id' });
+      }
+
+      // Store untuk cerita yang dibuat saat offline
+      if (!db.objectStoreNames.contains(storeNames.offline)) {
+        db.createObjectStore(storeNames.offline, { keyPath: 'id' });
       }
     };
 
@@ -22,11 +32,12 @@ const openDB = () => {
   });
 };
 
+// --- Untuk cerita dari server ---
 const getAllStories = async () => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readonly');
-    const store = transaction.objectStore(storeName);
+    const transaction = db.transaction(storeNames.stories, 'readonly');
+    const store = transaction.objectStore(storeNames.stories);
     const request = store.getAll();
 
     request.onsuccess = () => {
@@ -39,17 +50,11 @@ const getAllStories = async () => {
   });
 };
 
-// Fungsi tambahan yang dicari: getOfflineStories
-const getOfflineStories = async () => {
-  return getAllStories(); // alias
-};
-
-// Fungsi tambahan yang dicari: saveMultipleStories
 const saveMultipleStories = async (stories) => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
+    const transaction = db.transaction(storeNames.stories, 'readwrite');
+    const store = transaction.objectStore(storeNames.stories);
 
     stories.forEach((story) => {
       store.put(story);
@@ -60,44 +65,82 @@ const saveMultipleStories = async (stories) => {
   });
 };
 
-const putStory = async (story) => {
+// --- Untuk cerita buatan offline ---
+const saveOfflineStory = async (story) => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
+    const transaction = db.transaction(storeNames.offline, 'readwrite');
+    const store = transaction.objectStore(storeNames.offline);
     const request = store.put(story);
 
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject('Failed to save offline story');
+  });
+};
+
+const getOfflineStories = async () => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.offline, 'readonly');
+    const store = transaction.objectStore(storeNames.offline);
+    const request = store.getAll();
+
     request.onsuccess = () => {
-      resolve(true);
+      resolve(request.result);
     };
 
     request.onerror = () => {
-      reject('Failed to put story');
+      reject('Failed to get offline stories');
     };
+  });
+};
+
+const deleteOfflineStory = async (id) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.offline, 'readwrite');
+    const store = transaction.objectStore(storeNames.offline);
+    const request = store.delete(id);
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject('Failed to delete offline story');
+  });
+};
+
+// --- Untuk manipulasi umum ---
+const putStory = async (story) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.stories, 'readwrite');
+    const store = transaction.objectStore(storeNames.stories);
+    const request = store.put(story);
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject('Failed to put story');
   });
 };
 
 const deleteStory = async (id) => {
   const db = await openDB();
   return new Promise((resolve, reject) => {
-    const transaction = db.transaction(storeName, 'readwrite');
-    const store = transaction.objectStore(storeName);
+    const transaction = db.transaction(storeNames.stories, 'readwrite');
+    const store = transaction.objectStore(storeNames.stories);
     const request = store.delete(id);
 
-    request.onsuccess = () => {
-      resolve(true);
-    };
-
-    request.onerror = () => {
-      reject('Failed to delete story');
-    };
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject('Failed to delete story');
   });
 };
 
 export default {
+  // server stories
   getAllStories,
+  saveMultipleStories,
   putStory,
   deleteStory,
-  getOfflineStories, // tambahkan ini
-  saveMultipleStories, // tambahkan ini
+
+  // offline stories
+  getOfflineStories,
+  saveOfflineStory,
+  deleteOfflineStory,
 };

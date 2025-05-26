@@ -19,9 +19,14 @@ const HomePresenter = {
       // Simpan ke IndexedDB untuk cache offline
       await IdbHelper.saveMultipleStories(stories);
 
+      // Ambil juga cerita offline, gabungkan
+      const offlineStories = await IdbHelper.getOfflineStories();
+
+      const combinedStories = [...offlineStories, ...stories];
+
       return {
         error: false,
-        listStory: stories,
+        listStory: combinedStories,
         isOffline: false,
         message: 'Data cerita terbaru dari server',
       };
@@ -30,11 +35,14 @@ const HomePresenter = {
 
       // Ambil data dari IndexedDB jika gagal fetch online
       const cachedStories = await IdbHelper.getAllStories();
+      const offlineStories = await IdbHelper.getOfflineStories();
 
-      if (cachedStories.length > 0) {
+      const combinedStories = [...offlineStories, ...cachedStories];
+
+      if (combinedStories.length > 0) {
         return {
           error: false,
-          listStory: cachedStories,
+          listStory: combinedStories,
           isOffline: true,
           message: 'Menampilkan data dari cache (offline mode)',
         };
@@ -55,6 +63,9 @@ const HomePresenter = {
 
     try {
       await IdbHelper.deleteStory(id);
+      // Jika juga mungkin ada di offline stories, coba hapus juga
+      await IdbHelper.deleteOfflineStory(id);
+
       return {
         error: false,
         message: 'Story berhasil dihapus dari cache (IndexedDB)',
@@ -87,13 +98,13 @@ const HomePresenter = {
         try {
           const formData = new FormData();
           formData.append('description', story.description);
-          
-          // Jika story.photo adalah data base64, konversi ke Blob dulu
-          if (typeof story.photo === 'string' && story.photo.startsWith('data:')) {
-            const response = await fetch(story.photo);
+
+          // photoUrl adalah base64 string
+          if (typeof story.photoUrl === 'string' && story.photoUrl.startsWith('data:')) {
+            const response = await fetch(story.photoUrl);
             const blob = await response.blob();
             formData.append('photo', blob, 'photo.jpg');
-          } else {
+          } else if (story.photo) {
             // Jika sudah Blob atau File
             formData.append('photo', story.photo);
           }
@@ -101,11 +112,10 @@ const HomePresenter = {
           if (story.lat) formData.append('lat', story.lat);
           if (story.lon) formData.append('lon', story.lon);
 
-          // Ganti pemanggilan addNewStory ke addStory
           await StoryApi.addStory(formData, token);
 
           // Hapus cerita offline yang sudah sinkron
-          await IdbHelper.deleteStory(story.id);
+          await IdbHelper.deleteOfflineStory(story.id);
 
           console.log(`[Sync] Story ID ${story.id} berhasil disinkron`);
         } catch (err) {

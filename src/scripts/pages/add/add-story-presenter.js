@@ -41,19 +41,19 @@ const AddStoryPresenter = {
 
       return response;
     } catch (error) {
-      // Simpan lokal saat offline
+      // Simpan lokal saat offline ke offline store
       const fallbackId = `local-${Date.now()}`;
       const storyData = {
         id: fallbackId,
         name: formData.get('name') || 'Anonim',
         description: formData.get('description') || '',
-        photoUrl: formData.get('photoData') || 'default.jpg',
+        photoUrl: formData.get('photoData') || 'default.jpg', // base64 langsung simpan
         createdAt: new Date().toISOString(),
         lat: parseFloat(formData.get('lat')) || null,
         lon: parseFloat(formData.get('lon')) || null,
       };
 
-      await IdbHelper.putStory(storyData);
+      await IdbHelper.saveOfflineStory(storyData);
 
       return {
         error: true,
