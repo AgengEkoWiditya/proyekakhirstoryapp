@@ -1,5 +1,5 @@
 import StoryApi from '../../data/story-api';
-import IndexedDB from '../utils/indexeddb.js';
+import IndexedDB from '../../utils/indexeddb';
 
 const HomePresenter = {
   async getStories() {

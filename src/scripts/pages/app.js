@@ -1,6 +1,6 @@
 import routes from '../routes/routes';
 import { getActiveRoute } from '../routes/url-parser';
-import { initPushNotification } from './utils/push-notification.js';
+import { initPushNotification } from '../utils/push-notification';
 
 class App {
   #content = null;
