@@ -5,22 +5,40 @@ const STORE_NAME = 'stories';
 
 const dbPromise = openDB(DB_NAME, 1, {
   upgrade(db) {
-    db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+    if (!db.objectStoreNames.contains(STORE_NAME)) {
+      db.createObjectStore(STORE_NAME, { keyPath: 'id' });
+    }
   },
 });
 
 const IndexedDB = {
   async saveStory(story) {
-    const db = await dbPromise;
-    await db.put(STORE_NAME, story);
+    try {
+      const db = await dbPromise;
+      await db.put(STORE_NAME, story);
+    } catch (error) {
+      console.error('Gagal menyimpan story ke IndexedDB:', error);
+    }
   },
+
   async getAllStories() {
-    const db = await dbPromise;
-    return db.getAll(STORE_NAME);
+    try {
+      const db = await dbPromise;
+      const stories = await db.getAll(STORE_NAME);
+      return Array.isArray(stories) ? stories : [];
+    } catch (error) {
+      console.error('Gagal mengambil semua story dari IndexedDB:', error);
+      return [];
+    }
   },
+
   async deleteStory(id) {
-    const db = await dbPromise;
-    return db.delete(STORE_NAME, id);
+    try {
+      const db = await dbPromise;
+      return db.delete(STORE_NAME, id);
+    } catch (error) {
+      console.error('Gagal menghapus story dari IndexedDB:', error);
+    }
   },
 };
 
