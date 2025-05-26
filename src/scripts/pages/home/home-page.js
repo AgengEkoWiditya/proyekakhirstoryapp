@@ -62,7 +62,7 @@ export default class HomePage {
 
     const stories = result.listStory;
 
-    if (stories.length === 0) {
+    if (!Array.isArray(stories) || stories.length === 0) {
       storyContainer.setAttribute('aria-busy', 'false');
       storyContainer.innerHTML = '<p>No stories available at the moment.</p>';
       return;

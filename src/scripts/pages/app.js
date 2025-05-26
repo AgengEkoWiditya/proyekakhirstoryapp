@@ -1,6 +1,5 @@
 import routes from '../routes/routes';
 import { getActiveRoute } from '../routes/url-parser';
-import { initPushNotification } from '../utils/push-notification';
 
 class App {
   #content = null;
@@ -37,16 +36,16 @@ class App {
     if (this.currentPage?.destroy) {
       await this.currentPage.destroy();
     }
-  
+
     const url = getActiveRoute();
     const page = routes[url];
     const isAuthenticated = localStorage.getItem('authToken');
-  
+
     if (!isAuthenticated && url !== '/login' && url !== '/register') {
       window.location.hash = '/login';
       return;
     }
-  
+
     const isAuthPage = url === '/login' || url === '/register';
     if (isAuthPage) {
       this.#drawerButton.style.display = 'none'; 
@@ -55,7 +54,7 @@ class App {
       this.#drawerButton.style.display = 'inline-block';
       this.#navigationDrawer.style.display = 'block'; 
     }
-  
+
     if (document.startViewTransition) {
       document.startViewTransition(async () => {
         this.#content.innerHTML = await page.render();
@@ -65,9 +64,9 @@ class App {
       this.#content.innerHTML = await page.render();
       await page.afterRender();
     }
-  
+
     this.currentPage = page;
-  
+
     const logoutBtn = document.querySelector('#logoutBtn');
     if (logoutBtn) {
       logoutBtn.addEventListener('click', (e) => {
@@ -82,9 +81,7 @@ class App {
 export default App;
 
 document.addEventListener('DOMContentLoaded', () => {
-  initPushNotification();
-
-if ('serviceWorker' in navigator) {
+  if ('serviceWorker' in navigator) {
     navigator.serviceWorker.register('/proyekakhirstoryapp/sw.js')
       .then((registration) => {
         console.log('Service Worker registered with scope:', registration.scope);
