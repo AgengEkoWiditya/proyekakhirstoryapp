@@ -38,10 +38,6 @@ const StoryApi = {
       return { error: true, message: error.message };
     }
   },
-
-  addNewStory(formData, token) {
-    return this.addStory(formData, token);
-  }
 };
 
 export default StoryApi;
