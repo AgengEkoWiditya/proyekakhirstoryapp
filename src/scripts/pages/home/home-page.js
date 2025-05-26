@@ -51,16 +51,22 @@ export default class HomePage {
     pushContainer.innerHTML = ''; // Clear sebelum append
     pushContainer.appendChild(pushButton);
 
-    // Refresh
-    refreshBtn?.addEventListener('click', () => {
-      this.afterRender();
-    });
+    // Refresh stories dengan debounce sederhana agar tidak terlalu sering reload
+    refreshBtn?.removeEventListener('click', this._refreshHandler);
+    this._refreshHandler = async () => {
+      storyContainer.setAttribute('aria-busy', 'true');
+      storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
+      await this.afterRender();
+    };
+    refreshBtn?.addEventListener('click', this._refreshHandler);
 
     storyContainer.setAttribute('aria-busy', 'true');
     storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
 
+    // Ambil stories (online + offline)
     const result = await HomePresenter.getStories();
-    storyContainer.innerHTML = ''; // clear dulu
+
+    storyContainer.innerHTML = ''; // Clear dulu
 
     if (result.error) {
       storyContainer.setAttribute('aria-busy', 'false');
@@ -70,6 +76,7 @@ export default class HomePage {
 
     const stories = result.listStory;
 
+    // Tampilkan notifikasi offline jika mode offline
     if (result.isOffline) {
       const offlineNotice = document.createElement('p');
       offlineNotice.className = 'offline-notice';
@@ -89,6 +96,7 @@ export default class HomePage {
       map.remove();
     }
 
+    // Inisialisasi Leaflet map
     map = L.map(mapContainer).setView([0, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
@@ -111,6 +119,7 @@ export default class HomePage {
       }
     });
 
+    // Atur viewport map agar semua marker terlihat
     if (markers.length > 1) {
       const group = L.featureGroup(markers);
       map.fitBounds(group.getBounds().pad(0.2));
@@ -118,6 +127,7 @@ export default class HomePage {
       map.setView(markers[0].getLatLng(), 13);
     }
 
+    // Render daftar cerita
     const storyArticles = stories.map((story) => `
       <article class="story-item" tabindex="0" aria-label="Story from ${story.name || 'Unknown'}">
         <img src="${story.photoUrl || 'default-photo.png'}" alt="Photo from ${story.name || 'Unknown'}" class="story-img" loading="lazy" />
@@ -132,7 +142,7 @@ export default class HomePage {
     storyContainer.innerHTML += storyArticles;
     storyContainer.setAttribute('aria-busy', 'false');
 
-    // Event hapus
+    // Event listener untuk tombol hapus
     const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
     deleteButtons.forEach((btn) => {
       btn.addEventListener('click', async (event) => {

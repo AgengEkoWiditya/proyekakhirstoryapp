@@ -1,5 +1,18 @@
-import StoryApi from '../../data/story-api';
-import IdbHelper from '../../utils/indexeddb';
+import StoryApi from '../../data/story-api'; 
+import IdbHelper from '../../utils/indexeddb'; 
+
+function mergeStories(offlineStories, cachedStories) {
+  const map = new Map();
+
+  offlineStories.forEach((story) => map.set(story.id, story));
+  cachedStories.forEach((story) => {
+    if (!map.has(story.id)) {
+      map.set(story.id, story);
+    }
+  });
+
+  return Array.from(map.values());
+}
 
 const HomePresenter = {
   async getStories() {
@@ -13,21 +26,18 @@ const HomePresenter = {
     }
 
     try {
+      // Coba fetch data dari API
       const response = await StoryApi.getAllStories(token);
       const stories = Array.isArray(response.listStory) ? response.listStory : [];
 
-      // Simpan ke IndexedDB untuk cache offline
+      // Simpan data server ke IndexedDB (cache)
       await IdbHelper.saveMultipleStories(stories);
 
-      // Ambil juga cerita offline
+      // Ambil cerita offline yang belum sinkron
       const offlineStories = await IdbHelper.getOfflineStories();
 
-      // Gabungkan dengan unique berdasarkan id
-      const uniqueStoriesMap = new Map();
-      [...offlineStories, ...stories].forEach(story => {
-        uniqueStoriesMap.set(story.id, story);
-      });
-      const combinedStories = Array.from(uniqueStoriesMap.values());
+      // Gabungkan tanpa duplikat
+      const combinedStories = mergeStories(offlineStories, stories);
 
       return {
         error: false,
@@ -36,16 +46,14 @@ const HomePresenter = {
         message: 'Data cerita terbaru dari server',
       };
     } catch (error) {
-      console.warn('Gagal fetch API, mengambil dari IndexedDB:', error.message);
+      console.warn('Fetch API gagal, menggunakan cache:', error.message);
 
+      // Ambil data cache dan offline dari IndexedDB
       const cachedStories = await IdbHelper.getAllStories();
       const offlineStories = await IdbHelper.getOfflineStories();
 
-      const uniqueStoriesMap = new Map();
-      [...offlineStories, ...cachedStories].forEach(story => {
-        uniqueStoriesMap.set(story.id, story);
-      });
-      const combinedStories = Array.from(uniqueStoriesMap.values());
+      // Gabungkan tanpa duplikat
+      const combinedStories = mergeStories(offlineStories, cachedStories);
 
       if (combinedStories.length > 0) {
         return {
@@ -65,69 +73,26 @@ const HomePresenter = {
   },
 
   async deleteStoryById(id) {
-    if (!id) {
-      return { error: true, message: 'ID story tidak valid' };
-    }
-
     try {
+      const token = localStorage.getItem('authToken');
+
+      if (!token) {
+        return { error: true, message: 'Token tidak ditemukan. Silakan login ulang.' };
+      }
+
+      const response = await StoryApi.deleteStory(token, id);
+
+      if (response.error) {
+        return { error: true, message: response.message || 'Gagal menghapus story.' };
+      }
+
+      // Hapus juga di IndexedDB
       await IdbHelper.deleteStory(id);
-      await IdbHelper.deleteOfflineStory(id);
+      await IdbHelper.deleteOfflineStory(id); // hapus juga dari offline store jika ada
 
-      return {
-        error: false,
-        message: 'Story berhasil dihapus dari cache (IndexedDB)',
-      };
+      return { error: false, message: 'Story berhasil dihapus.' };
     } catch (error) {
-      console.error('Gagal menghapus story dari IndexedDB:', error);
-      return {
-        error: true,
-        message: 'Gagal menghapus story dari IndexedDB',
-      };
-    }
-  },
-
-  async syncOfflineStories() {
-    const token = localStorage.getItem('authToken');
-    if (!token) {
-      console.warn('[Sync] Token tidak ditemukan');
-      return;
-    }
-
-    try {
-      const offlineStories = await IdbHelper.getOfflineStories();
-
-      if (!offlineStories.length) {
-        console.info('[Sync] Tidak ada cerita offline untuk disinkronkan');
-        return;
-      }
-
-      for (const story of offlineStories) {
-        try {
-          const formData = new FormData();
-          formData.append('description', story.description);
-
-          if (typeof story.photoUrl === 'string' && story.photoUrl.startsWith('data:')) {
-            const response = await fetch(story.photoUrl);
-            const blob = await response.blob();
-            formData.append('photo', blob, 'photo.jpg');
-          } else if (story.photo) {
-            formData.append('photo', story.photo);
-          }
-
-          if (story.lat) formData.append('lat', story.lat);
-          if (story.lon) formData.append('lon', story.lon);
-
-          await StoryApi.addStory(formData, token);
-
-          await IdbHelper.deleteOfflineStory(story.id);
-
-          console.log(`[Sync] Story ID ${story.id} berhasil disinkron`);
-        } catch (err) {
-          console.warn(`[Sync] Gagal kirim story ID ${story.id}:`, err.message);
-        }
-      }
-    } catch (err) {
-      console.error('[Sync] Gagal sinkronisasi offline stories:', err.message);
+      return { error: true, message: 'Gagal menghapus story. Coba lagi nanti.' };
     }
   },
 };
