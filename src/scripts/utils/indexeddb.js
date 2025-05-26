@@ -1,71 +1,146 @@
-import IdbHelper from './indexeddb.js'; // sesuaikan path-nya
+const dbName = 'StoryAppDB';
+const storeNames = {
+  stories: 'stories',
+  offline: 'offline-stories',
+};
 
-async function loadStories() {
-  try {
-    const response = await fetch('https://story-api.dicoding.dev/v1/stories');
-    if (!response.ok) throw new Error('Network response not ok');
-    const data = await response.json();
+const openDB = () => {
+  return new Promise((resolve, reject) => {
+    const request = indexedDB.open(dbName, 1);
 
-    // Simpan ke IndexedDB
-    await IdbHelper.saveMultipleStories(data.listStory);
+    request.onupgradeneeded = (event) => {
+      const db = event.target.result;
 
-    // Render cerita dan peta
-    renderStories(data.listStory);
-    initMapWithMarkers(data.listStory);
+      // Store untuk cerita dari server
+      if (!db.objectStoreNames.contains(storeNames.stories)) {
+        db.createObjectStore(storeNames.stories, { keyPath: 'id' });
+      }
 
-  } catch (error) {
-    console.warn('Fetch gagal, fallback ke cache IndexedDB:', error);
+      // Store untuk cerita yang dibuat saat offline
+      if (!db.objectStoreNames.contains(storeNames.offline)) {
+        db.createObjectStore(storeNames.offline, { keyPath: 'id' });
+      }
+    };
 
-    // Ambil data dari IndexedDB
-    const cachedStories = await IdbHelper.getAllStories();
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
 
-    if (cachedStories.length > 0) {
-      renderStories(cachedStories);
-      initMapWithMarkers(cachedStories);
-      showToast('Anda sedang offline, data dari cache ditampilkan.');
-    } else {
-      showError('Tidak ada data cerita yang tersedia offline.');
-    }
-  }
-}
-
-// Contoh fungsi render sederhana
-function renderStories(stories) {
-  const container = document.getElementById('stories-container');
-  container.innerHTML = '';
-  stories.forEach((story) => {
-    const el = document.createElement('div');
-    el.textContent = story.title;
-    container.appendChild(el);
+    request.onerror = () => {
+      reject('Failed to open IndexedDB');
+    };
   });
-}
+};
 
-// Contoh inisialisasi peta (gunakan Leaflet atau lainnya)
-function initMapWithMarkers(stories) {
-  // Misal sudah punya objek map Leaflet global "map"
-  if (!window.map) {
-    window.map = L.map('map').setView([-6.2, 106.8], 11);
-    L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-      attribution: '&copy; OpenStreetMap contributors'
-    }).addTo(window.map);
-  }
+// --- Untuk cerita dari server ---
+const getAllStories = async () => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.stories, 'readonly');
+    const store = transaction.objectStore(storeNames.stories);
+    const request = store.getAll();
 
-  stories.forEach(story => {
-    if (story.lat && story.lon) {
-      L.marker([story.lat, story.lon]).addTo(window.map)
-        .bindPopup(story.title);
-    }
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject('Failed to get all stories');
+    };
   });
-}
+};
 
-// Fungsi untuk menampilkan toast atau alert
-function showToast(message) {
-  alert(message); // ganti dengan UI toast kalau ada
-}
+const saveMultipleStories = async (stories) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.stories, 'readwrite');
+    const store = transaction.objectStore(storeNames.stories);
 
-function showError(message) {
-  alert(message); // ganti dengan UI error display
-}
+    stories.forEach((story) => {
+      store.put(story);
+    });
 
-// Panggil fungsi loadStories di halaman utama
-loadStories();
+    transaction.oncomplete = () => resolve(true);
+    transaction.onerror = () => reject('Failed to save multiple stories');
+  });
+};
+
+// --- Untuk cerita buatan offline ---
+const saveOfflineStory = async (story) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.offline, 'readwrite');
+    const store = transaction.objectStore(storeNames.offline);
+    const request = store.put(story);
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject('Failed to save offline story');
+  });
+};
+
+const getOfflineStories = async () => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.offline, 'readonly');
+    const store = transaction.objectStore(storeNames.offline);
+    const request = store.getAll();
+
+    request.onsuccess = () => {
+      resolve(request.result);
+    };
+
+    request.onerror = () => {
+      reject('Failed to get offline stories');
+    };
+  });
+};
+
+const deleteOfflineStory = async (id) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.offline, 'readwrite');
+    const store = transaction.objectStore(storeNames.offline);
+    const request = store.delete(id);
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject('Failed to delete offline story');
+  });
+};
+
+// --- Untuk manipulasi umum ---
+const putStory = async (story) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.stories, 'readwrite');
+    const store = transaction.objectStore(storeNames.stories);
+    const request = store.put(story);
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject('Failed to put story');
+  });
+};
+
+const deleteStory = async (id) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const transaction = db.transaction(storeNames.stories, 'readwrite');
+    const store = transaction.objectStore(storeNames.stories);
+    const request = store.delete(id);
+
+    request.onsuccess = () => resolve(true);
+    request.onerror = () => reject('Failed to delete story');
+  });
+};
+
+export default {
+  // server stories
+  getAllStories,
+  saveMultipleStories,
+  putStory,
+  deleteStory,
+
+  // offline stories
+  getOfflineStories,
+  saveOfflineStory,
+  deleteOfflineStory,
+};
