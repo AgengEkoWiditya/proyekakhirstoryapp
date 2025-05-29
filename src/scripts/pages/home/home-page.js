@@ -158,19 +158,29 @@ export default class HomePage {
 
     const favoriteButtons = storyContainer.querySelectorAll('.favorite-btn');
     favoriteButtons.forEach((btn) => {
-      btn.addEventListener('click', async (event) => {
-        const id = event.target.dataset.id;
-        const story = stories.find((s) => s.id === id);
-        if (story) {
-          try {
-            await IdbHelper.putStory({ ...story, isFavorite: true });
-            alert(`Story \"${story.name}\" berhasil disimpan ke favorit!`);
-          } catch (error) {
-            console.error('Gagal menyimpan story ke favorit:', error);
-            alert('Gagal menyimpan story ke favorit.');
-          }
-        }
-      });
-    });
+    btn.addEventListener('click', async (event) => {
+    const id = event.target.dataset.id;
+    const story = stories.find((s) => s.id === id);
+
+    if (!story) return;
+
+    try {
+      const existingFavorites = await IdbHelper.getAllStories();
+      const alreadyExists = existingFavorites.some((fav) => fav.id === id);
+
+      if (alreadyExists) {
+        alert(`Story "${story.name}" sudah ada di favorit.`);
+        return;
+      }
+
+      await IdbHelper.putStory({ ...story, isFavorite: true });
+      alert(`Story "${story.name}" berhasil disimpan ke favorit!`);
+    } catch (error) {
+      console.error('Gagal menyimpan story ke favorit:', error);
+      alert('Gagal menyimpan story ke favorit.');
+    }
+  });
+});
+
   }
 }

@@ -3,6 +3,7 @@ const dbVersion = 1;
 const storeNames = {
   stories: 'stories',
   offline: 'offline-stories',
+  favorites: 'favorites',
 };
 
 const openDB = () => {
@@ -18,6 +19,10 @@ const openDB = () => {
 
       if (!db.objectStoreNames.contains(storeNames.offline)) {
         db.createObjectStore(storeNames.offline, { keyPath: 'id' });
+      }
+
+      if (!db.objectStoreNames.contains(storeNames.favorites)) {
+        db.createObjectStore(storeNames.favorites, { keyPath: 'id' });
       }
     };
 
@@ -72,11 +77,9 @@ const putStory = async (story) => {
 const deleteStory = async (id) => {
   const db = await openDB();
 
-  // Tunggu dulu hapus offline story supaya sinkron
   try {
     await deleteOfflineStory(id);
   } catch (err) {
-    // Abaikan error hapus offline agar tidak menggagalkan proses utama
     console.warn('Gagal hapus offline story:', err);
   }
 
@@ -127,6 +130,43 @@ const deleteOfflineStory = async (id) => {
   });
 };
 
+// ---------- Store favorit ----------
+const saveFavorite = async (story) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeNames.favorites, 'readwrite');
+    const store = tx.objectStore(storeNames.favorites);
+    const req = store.put(story);
+
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(new Error('Failed to save favorite story'));
+  });
+};
+
+const getFavoriteStories = async () => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeNames.favorites, 'readonly');
+    const store = tx.objectStore(storeNames.favorites);
+    const req = store.getAll();
+
+    req.onsuccess = () => resolve(req.result);
+    req.onerror = () => reject(new Error('Failed to get favorite stories'));
+  });
+};
+
+const deleteFavorite = async (id) => {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(storeNames.favorites, 'readwrite');
+    const store = tx.objectStore(storeNames.favorites);
+    const req = store.delete(id);
+
+    req.onsuccess = () => resolve(true);
+    req.onerror = () => reject(new Error('Failed to delete favorite story'));
+  });
+};
+
 export default {
   getAllStories,
   saveMultipleStories,
@@ -136,4 +176,8 @@ export default {
   getOfflineStories,
   saveOfflineStory,
   deleteOfflineStory,
+
+  saveFavorite,
+  getFavoriteStories,
+  deleteFavorite,
 };
