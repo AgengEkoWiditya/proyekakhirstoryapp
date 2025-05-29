@@ -2,6 +2,7 @@ import HomePresenter from './home-presenter';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import { createPushNotificationButton } from '../../utils/push-notification';
+import IdbHelper from '../../utils/indexeddb';
 
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -10,7 +11,7 @@ L.Icon.Default.mergeOptions({
   shadowUrl: require('leaflet/dist/images/marker-shadow.png'),
 });
 
-let map; // untuk menyimpan instance map global
+let map;
 
 export default class HomePage {
   async render() {
@@ -44,12 +45,10 @@ export default class HomePage {
       return;
     }
 
-    // Tombol push notification
     const pushButton = createPushNotificationButton();
-    pushContainer.innerHTML = ''; // Clear sebelum append
+    pushContainer.innerHTML = '';
     pushContainer.appendChild(pushButton);
 
-    // Bind event refresh
     refreshBtn?.removeEventListener('click', this._refreshHandler);
     this._refreshHandler = async () => {
       await this.loadStories();
@@ -71,7 +70,6 @@ export default class HomePage {
     storyContainer.setAttribute('aria-busy', 'true');
     storyContainer.innerHTML = `<p class="loading">Loading stories...</p>`;
 
-    // Ambil stories (online + offline)
     const result = await HomePresenter.getStories();
 
     storyContainer.innerHTML = '';
@@ -84,7 +82,6 @@ export default class HomePage {
 
     const stories = result.listStory;
 
-    // Tampilkan notifikasi offline jika mode offline
     if (result.isOffline) {
       const offlineNotice = document.createElement('p');
       offlineNotice.className = 'offline-notice';
@@ -99,12 +96,10 @@ export default class HomePage {
       return;
     }
 
-    // Bersihkan map lama (jika ada)
     if (map) {
       map.remove();
     }
 
-    // Inisialisasi Leaflet map
     map = L.map(mapContainer).setView([0, 0], 2);
     L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
       attribution: '&copy; OpenStreetMap contributors',
@@ -127,7 +122,6 @@ export default class HomePage {
       }
     });
 
-    // Atur viewport map agar semua marker terlihat
     if (markers.length > 1) {
       const group = L.featureGroup(markers);
       map.fitBounds(group.getBounds().pad(0.2));
@@ -135,7 +129,6 @@ export default class HomePage {
       map.setView(markers[0].getLatLng(), 13);
     }
 
-    // Render daftar cerita
     const storyArticles = stories.map((story) => `
       <article class="story-item" tabindex="0" aria-label="Story from ${story.name || 'Unknown'}">
         <img src="${story.photoUrl || 'default-photo.png'}" alt="Photo from ${story.name || 'Unknown'}" class="story-img" loading="lazy" />
@@ -144,13 +137,13 @@ export default class HomePage {
         <time datetime="${story.createdAt}" class="story-date">${new Date(story.createdAt).toLocaleString()}</time>
         <a href="#/story/${story.id}" class="story-details-link" aria-label="See details of ${story.name || 'story'}">Read more</a>
         <button class="delete-btn" data-id="${story.id}" aria-label="Hapus story ${story.name || 'story'}">Hapus</button>
+        <button class="favorite-btn" data-id="${story.id}" aria-label="Simpan story ${story.name || 'story'} ke favorit">❤️ Simpan ke Favorit</button>
       </article>
     `).join('');
 
     storyContainer.innerHTML += storyArticles;
     storyContainer.setAttribute('aria-busy', 'false');
 
-    // Event listener untuk tombol hapus
     const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
     deleteButtons.forEach((btn) => {
       btn.addEventListener('click', async (event) => {
@@ -159,6 +152,23 @@ export default class HomePage {
           const res = await HomePresenter.deleteStoryById(id);
           alert(res.message);
           await this.loadStories();
+        }
+      });
+    });
+
+    const favoriteButtons = storyContainer.querySelectorAll('.favorite-btn');
+    favoriteButtons.forEach((btn) => {
+      btn.addEventListener('click', async (event) => {
+        const id = event.target.dataset.id;
+        const story = stories.find((s) => s.id === id);
+        if (story) {
+          try {
+            await IdbHelper.putStory({ ...story, isFavorite: true });
+            alert(`Story \"${story.name}\" berhasil disimpan ke favorit!`);
+          } catch (error) {
+            console.error('Gagal menyimpan story ke favorit:', error);
+            alert('Gagal menyimpan story ke favorit.');
+          }
         }
       });
     });

@@ -3,6 +3,9 @@ import AboutPage from '../pages/about/about-page';
 import RegisterPage from '../pages/register/register-page';
 import LoginPage from '../pages/login/login-page';
 import AddStoryPage from '../pages/add/add-story-page';
+import FavoritesPage from '../pages/favorites/favorites-page';
+import FavoritesPresenter from '../pages/favorites/favorites-presenter';
+
 
 const routes = {
   '/': new HomePage(),
