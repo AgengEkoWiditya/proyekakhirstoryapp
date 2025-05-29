@@ -13,7 +13,7 @@ const FavoritesPresenter = {
     container.innerHTML = '<p class="loading">Memuat cerita favorit...</p>';
 
     try {
-      const favorites = await IdbHelper.getAllStories();
+      const favorites = await IdbHelper.getFavoriteStories(); 
 
       container.innerHTML = '';
 
