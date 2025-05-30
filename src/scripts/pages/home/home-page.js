@@ -137,50 +137,49 @@ export default class HomePage {
         <time datetime="${story.createdAt}" class="story-date">${new Date(story.createdAt).toLocaleString()}</time>
         <a href="#/story/${story.id}" class="story-details-link" aria-label="See details of ${story.name || 'story'}">Read more</a>
         <button class="delete-btn" data-id="${story.id}" aria-label="Hapus story ${story.name || 'story'}">Hapus</button>
-        <button class="favorite-btn" data-id="${story.id}" aria-label="Simpan story ${story.name || 'story'} ke favorit">❤️ Simpan ke Favorit</button>
+        <button class="favorite-btn" data-id="${story.id}" aria-label="Simpan story ${story.name || 'story'} ke favorit">⭐ Favorit</button>
       </article>
     `).join('');
 
-    storyContainer.innerHTML += storyArticles;
+    storyContainer.innerHTML = storyArticles;
     storyContainer.setAttribute('aria-busy', 'false');
 
-    const deleteButtons = storyContainer.querySelectorAll('.delete-btn');
-    deleteButtons.forEach((btn) => {
+    // Event listener hapus story
+    storyContainer.querySelectorAll('.delete-btn').forEach((btn) => {
       btn.addEventListener('click', async (event) => {
         const id = event.target.dataset.id;
         if (confirm('Yakin ingin menghapus story ini?')) {
-          const res = await HomePresenter.deleteStoryById(id);
-          alert(res.message);
-          await this.loadStories();
+          try {
+            await HomePresenter.deleteStory(id);
+            alert('Story berhasil dihapus.');
+            await this.loadStories();
+          } catch (err) {
+            console.error(err);
+            alert('Gagal menghapus story.');
+          }
         }
       });
     });
 
-    const favoriteButtons = storyContainer.querySelectorAll('.favorite-btn');
-    favoriteButtons.forEach((btn) => {
-    btn.addEventListener('click', async (event) => {
-    const id = event.target.dataset.id;
-    const story = stories.find((s) => s.id === id);
+    // Event listener favorit story
+    storyContainer.querySelectorAll('.favorite-btn').forEach((btn) => {
+      btn.addEventListener('click', async (event) => {
+        const id = event.target.dataset.id;
+        const storyToFavorite = stories.find((story) => story.id === id);
 
-    if (!story) return;
+        if (!storyToFavorite) {
+          alert('Story tidak ditemukan.');
+          return;
+        }
 
-    try {
-      const existingFavorites = await IdbHelper.getAllStories();
-      const alreadyExists = existingFavorites.some((fav) => fav.id === id);
-
-      if (alreadyExists) {
-        alert(`Story "${story.name}" sudah ada di favorit.`);
-        return;
-      }
-
-      await IdbHelper.putStory({ ...story, isFavorite: true });
-      alert(`Story "${story.name}" berhasil disimpan ke favorit!`);
-    } catch (error) {
-      console.error('Gagal menyimpan story ke favorit:', error);
-      alert('Gagal menyimpan story ke favorit.');
-    }
-  });
-});
-
+        try {
+          await IdbHelper.saveFavorite(storyToFavorite);
+          alert('Story disimpan ke favorit!');
+        } catch (error) {
+          console.error('Gagal simpan favorit:', error);
+          alert('Gagal simpan story ke favorit.');
+        }
+      });
+    });
   }
 }
