@@ -19,7 +19,8 @@ export const subscribePush = async (registration) => {
 
     console.log('✅ Subscribed to push notifications:', subscription);
 
-    const token = localStorage.getItem('token');
+    // Ambil token dari localStorage dengan key 'authToken' (sesuai login-presenter.js)
+    const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Token tidak ditemukan. Anda harus login dulu.');
 
     const response = await fetch('https://story-api.dicoding.dev/v1/notifications/subscribe', {
