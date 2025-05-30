@@ -17,8 +17,21 @@ export const subscribePush = async (registration) => {
       applicationServerKey: urlBase64ToUint8Array(pushServerPublicKey),
     });
     console.log('Subscribed to push notifications:', newSubscription);
+
+    // Kirim subscription ke server
+    const response = await fetch('/notifications/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify(newSubscription),
+    });
+
+    if (!response.ok) {
+      throw new Error('Gagal mengirim subscription ke server');
+    }
+
     alert('Subscribed to push notifications!');
-    // TODO: Kirim subscription ke server jika diperlukan
     return newSubscription;
   } catch (error) {
     console.error('Push subscription failed:', error);
@@ -31,8 +44,15 @@ export const unsubscribePush = async (subscription) => {
   try {
     await subscription.unsubscribe();
     console.log('Unsubscribed from push notifications');
+
+    // Inform server tentang unsubscribe (opsional)
+    await fetch('/notifications/unsubscribe', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(subscription),
+    });
+
     alert('Unsubscribed from push notifications!');
-    // TODO: Inform server tentang unsubscribe jika diperlukan
     return true;
   } catch (error) {
     console.error('Failed to unsubscribe:', error);
