@@ -18,18 +18,18 @@ export const subscribePush = async (registration) => {
     });
     console.log('Subscribed to push notifications:', newSubscription);
 
-    // Kirim subscription ke server
-    const response = await fetch('/notifications/subscribe', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(newSubscription),
-    });
+    // ⚠️ Tidak perlu kirim ke server karena pakai GitHub Pages (static hosting)
+    // const response = await fetch('/notifications/subscribe', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify(newSubscription),
+    // });
 
-    if (!response.ok) {
-      throw new Error('Gagal mengirim subscription ke server: ' + response.status);
-    }
+    // if (!response.ok) {
+    //   throw new Error('Gagal mengirim subscription ke server: ' + response.status);
+    // }
 
     alert('Subscribed to push notifications!');
     return newSubscription;
@@ -45,14 +45,14 @@ export const unsubscribePush = async (subscription) => {
     await subscription.unsubscribe();
     console.log('Unsubscribed from push notifications');
 
-    // Inform server jika perlu (tambahkan endpoint unsubscribe)
-    await fetch('/notifications/unsubscribe', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify(subscription),
-    });
+    // ⚠️ Tidak perlu kirim ke server
+    // await fetch('/notifications/unsubscribe', {
+    //   method: 'POST',
+    //   headers: {
+    //     'Content-Type': 'application/json'
+    //   },
+    //   body: JSON.stringify(subscription),
+    // });
 
     alert('Unsubscribed from push notifications!');
     return true;
@@ -71,7 +71,9 @@ export const createPushNotificationButton = () => {
   button.style.marginTop = '1rem';
 
   const updateButtonText = (isSubscribed) => {
-    button.textContent = isSubscribed ? 'Unsubscribe from Push Notification' : 'Subscribe to Push Notification';
+    button.textContent = isSubscribed
+      ? 'Unsubscribe from Push Notification'
+      : 'Subscribe to Push Notification';
   };
 
   (async () => {
