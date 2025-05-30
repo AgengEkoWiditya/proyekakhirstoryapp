@@ -165,10 +165,14 @@ export default class HomePage {
     storyContainer.querySelectorAll('.favorite-btn').forEach((btn) => {
       btn.addEventListener('click', async (event) => {
         const id = event.target.dataset.id;
-        const storyToFavorite = stories.find((story) => story.id === id);
+        console.log('Favorite clicked, id:', id);
+
+        // Pastikan cari dengan string id, karena dataset.id selalu string
+        const storyToFavorite = stories.find((story) => String(story.id) === id);
 
         if (!storyToFavorite) {
           alert('Story tidak ditemukan.');
+          console.error('storyToFavorite is undefined for id:', id);
           return;
         }
 
