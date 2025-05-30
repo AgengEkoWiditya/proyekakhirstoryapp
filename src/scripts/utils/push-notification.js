@@ -28,14 +28,14 @@ export const subscribePush = async (registration) => {
     });
 
     if (!response.ok) {
-      throw new Error('Gagal mengirim subscription ke server');
+      throw new Error('Gagal mengirim subscription ke server: ' + response.status);
     }
 
     alert('Subscribed to push notifications!');
     return newSubscription;
   } catch (error) {
     console.error('Push subscription failed:', error);
-    alert('Failed to subscribe to push notifications.');
+    alert('Failed to subscribe to push notifications: ' + error.message);
     return null;
   }
 };
@@ -45,10 +45,12 @@ export const unsubscribePush = async (subscription) => {
     await subscription.unsubscribe();
     console.log('Unsubscribed from push notifications');
 
-    // Inform server tentang unsubscribe (opsional)
+    // Inform server jika perlu (tambahkan endpoint unsubscribe)
     await fetch('/notifications/unsubscribe', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify(subscription),
     });
 
@@ -78,6 +80,7 @@ export const createPushNotificationButton = () => {
       button.textContent = 'Push Not Supported';
       return;
     }
+
     const registration = await navigator.serviceWorker.ready;
     let subscription = await registration.pushManager.getSubscription();
     updateButtonText(!!subscription);
@@ -86,11 +89,9 @@ export const createPushNotificationButton = () => {
       if (button.disabled) return;
 
       if (!subscription) {
-        // Subscribe
         subscription = await subscribePush(registration);
         if (subscription) updateButtonText(true);
       } else {
-        // Unsubscribe
         const success = await unsubscribePush(subscription);
         if (success) {
           subscription = null;

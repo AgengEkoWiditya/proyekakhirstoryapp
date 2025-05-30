@@ -41,15 +41,19 @@ export default class HomePage {
     const refreshBtn = document.querySelector('#refreshBtn');
 
     if (!pushContainer) {
-      console.error('Element yang dibutuhkan tidak ditemukan.');
+      console.error('Element pushContainer tidak ditemukan.');
       return;
     }
 
+    // Render tombol Push Notification
     const pushButton = createPushNotificationButton();
     pushContainer.innerHTML = '';
     pushContainer.appendChild(pushButton);
 
-    refreshBtn?.removeEventListener('click', this._refreshHandler);
+    // Bind ulang event handler tombol refresh
+    if (this._refreshHandler) {
+      refreshBtn?.removeEventListener('click', this._refreshHandler);
+    }
     this._refreshHandler = async () => {
       await this.loadStories();
     };
@@ -63,7 +67,7 @@ export default class HomePage {
     const mapContainer = document.querySelector('#map');
 
     if (!storyContainer || !mapContainer) {
-      console.error('Element yang dibutuhkan tidak ditemukan.');
+      console.error('Element storyList atau map tidak ditemukan.');
       return;
     }
 
@@ -92,10 +96,11 @@ export default class HomePage {
 
     if (!Array.isArray(stories) || stories.length === 0) {
       storyContainer.setAttribute('aria-busy', 'false');
-      storyContainer.innerHTML += '<p>No stories available at the moment.</p>';
+      storyContainer.innerHTML += '<p>Tidak ada stories tersedia saat ini.</p>';
       return;
     }
 
+    // Bersihkan peta jika sudah ada
     if (map) {
       map.remove();
     }
@@ -114,7 +119,7 @@ export default class HomePage {
           <div class="popup-content">
             <strong>${story.name || 'No Name'}</strong><br/>
             <p>${story.description || ''}</p>
-            <a href="#/story/${story.id}" aria-label="See details of ${story.name || 'story'}">Details</a>
+            <a href="#/story/${story.id}" aria-label="Lihat detail story ${story.name || 'story'}">Detail</a>
           </div>
         `;
         marker.bindPopup(popupContent);
@@ -130,12 +135,12 @@ export default class HomePage {
     }
 
     const storyArticles = stories.map((story) => `
-      <article class="story-item" tabindex="0" aria-label="Story from ${story.name || 'Unknown'}">
-        <img src="${story.photoUrl || 'default-photo.png'}" alt="Photo from ${story.name || 'Unknown'}" class="story-img" loading="lazy" />
+      <article class="story-item" tabindex="0" aria-label="Story dari ${story.name || 'Tidak diketahui'}">
+        <img src="${story.photoUrl || 'default-photo.png'}" alt="Foto dari ${story.name || 'Tidak diketahui'}" class="story-img" loading="lazy" />
         <h3 class="story-title">${story.name || 'No Name'}</h3>
         <p class="story-description">${story.description || ''}</p>
         <time datetime="${story.createdAt}" class="story-date">${new Date(story.createdAt).toLocaleString()}</time>
-        <a href="#/story/${story.id}" class="story-details-link" aria-label="See details of ${story.name || 'story'}">Read more</a>
+        <a href="#/story/${story.id}" class="story-details-link" aria-label="Lihat detail story ${story.name || 'story'}">Baca selengkapnya</a>
         <button class="delete-btn" data-id="${story.id}" aria-label="Hapus story ${story.name || 'story'}">Hapus</button>
         <button class="favorite-btn" data-id="${story.id}" aria-label="Simpan story ${story.name || 'story'} ke favorit">⭐ Favorit</button>
       </article>
@@ -167,7 +172,7 @@ export default class HomePage {
         const id = event.target.dataset.id;
         console.log('Favorite clicked, id:', id);
 
-        // Pastikan cari dengan string id, karena dataset.id selalu string
+        // Cari story yang di-favorit-kan, data.id biasanya string
         const storyToFavorite = stories.find((story) => String(story.id) === id);
 
         if (!storyToFavorite) {
@@ -178,10 +183,10 @@ export default class HomePage {
 
         try {
           await IdbHelper.saveFavorite(storyToFavorite);
-          alert('Story disimpan ke favorit!');
+          alert('Story berhasil disimpan ke favorit!');
         } catch (error) {
           console.error('Gagal simpan favorit:', error);
-          alert('Gagal simpan story ke favorit.');
+          alert('Gagal menyimpan story ke favorit.');
         }
       });
     });
