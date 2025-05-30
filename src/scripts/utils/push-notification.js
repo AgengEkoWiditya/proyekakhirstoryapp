@@ -19,9 +19,12 @@ export const subscribePush = async (registration) => {
 
     console.log('✅ Subscribed to push notifications:', subscription);
 
-    // Ambil token dari localStorage dengan key 'authToken' (sesuai login-presenter.js)
     const token = localStorage.getItem('authToken');
     if (!token) throw new Error('Token tidak ditemukan. Anda harus login dulu.');
+
+    // Hapus properti expirationTime sebelum dikirim
+    const subscriptionJson = subscription.toJSON();
+    delete subscriptionJson.expirationTime;
 
     const response = await fetch('https://story-api.dicoding.dev/v1/notifications/subscribe', {
       method: 'POST',
@@ -29,7 +32,7 @@ export const subscribePush = async (registration) => {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${token}`,
       },
-      body: JSON.stringify(subscription),
+      body: JSON.stringify(subscriptionJson),
     });
 
     if (!response.ok) {
