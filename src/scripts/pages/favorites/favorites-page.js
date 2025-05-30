@@ -1,13 +1,15 @@
 import IdbHelper from '../../utils/indexeddb';
 
-const createFavoritesPage = () => `
-  <main id="main-content" class="favorite-page" tabindex="-1" role="main" aria-label="Favorite stories">
-    <h2>Story Favorit</h2>
-    <div id="favorite-list" class="story-list" aria-live="polite" aria-busy="false"></div>
-  </main>
-`;
+const FavoritesPage = {
+  render() {
+    return `
+      <main id="main-content" class="favorite-page" tabindex="-1" role="main" aria-label="Favorite stories">
+        <h2>Story Favorit</h2>
+        <div id="favorite-list" class="story-list" aria-live="polite" aria-busy="false"></div>
+      </main>
+    `;
+  },
 
-const FavoritesPresenter = {
   async afterRender() {
     const container = document.querySelector('#favorite-list');
 
@@ -59,7 +61,7 @@ const FavoritesPresenter = {
             try {
               await IdbHelper.deleteFavorite(id);
               alert('Story dihapus dari favorit.');
-              await this.afterRender(); // Refresh ulang halaman favorit
+              await FavoritesPage.afterRender(); // Refresh ulang halaman favorit
             } catch (err) {
               console.error('Gagal menghapus story:', err);
               alert('Gagal menghapus story dari favorit.');
@@ -73,7 +75,7 @@ const FavoritesPresenter = {
       container.innerHTML = '<p class="error-message">Gagal memuat cerita favorit.</p>';
       container.setAttribute('aria-busy', 'false');
     }
-  },
+  }
 };
 
-export { createFavoritesPage, FavoritesPresenter };
+export default FavoritesPage;
