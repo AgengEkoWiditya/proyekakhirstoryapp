@@ -12,30 +12,35 @@ const urlBase64ToUint8Array = (base64String) => {
 
 export const subscribePush = async (registration) => {
   try {
-    const newSubscription = await registration.pushManager.subscribe({
+    const subscription = await registration.pushManager.subscribe({
       userVisibleOnly: true,
       applicationServerKey: urlBase64ToUint8Array(pushServerPublicKey),
     });
-    console.log('Subscribed to push notifications:', newSubscription);
 
-    // ⚠️ Tidak perlu kirim ke server karena pakai GitHub Pages (static hosting)
-    // const response = await fetch('/notifications/subscribe', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify(newSubscription),
-    // });
+    console.log('✅ Subscribed to push notifications:', subscription);
 
-    // if (!response.ok) {
-    //   throw new Error('Gagal mengirim subscription ke server: ' + response.status);
-    // }
+    const token = localStorage.getItem('token');
+    if (!token) throw new Error('Token tidak ditemukan. Anda harus login dulu.');
 
-    alert('Subscribed to push notifications!');
-    return newSubscription;
+    const response = await fetch('https://story-api.dicoding.dev/v1/notifications/subscribe', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify(subscription),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      throw new Error(`Gagal mengirim subscription: ${response.status} - ${errorData.message}`);
+    }
+
+    alert('Berhasil subscribe notifikasi!');
+    return subscription;
   } catch (error) {
-    console.error('Push subscription failed:', error);
-    alert('Failed to subscribe to push notifications: ' + error.message);
+    console.error('❌ Gagal subscribe:', error);
+    alert('Gagal subscribe notifikasi: ' + error.message);
     return null;
   }
 };
@@ -43,22 +48,13 @@ export const subscribePush = async (registration) => {
 export const unsubscribePush = async (subscription) => {
   try {
     await subscription.unsubscribe();
-    console.log('Unsubscribed from push notifications');
+    console.log('✅ Unsubscribed dari push notifications');
 
-    // ⚠️ Tidak perlu kirim ke server
-    // await fetch('/notifications/unsubscribe', {
-    //   method: 'POST',
-    //   headers: {
-    //     'Content-Type': 'application/json'
-    //   },
-    //   body: JSON.stringify(subscription),
-    // });
-
-    alert('Unsubscribed from push notifications!');
+    alert('Berhasil unsubscribe notifikasi!');
     return true;
   } catch (error) {
-    console.error('Failed to unsubscribe:', error);
-    alert('Failed to unsubscribe from push notifications.');
+    console.error('❌ Gagal unsubscribe:', error);
+    alert('Gagal unsubscribe dari notifikasi.');
     return false;
   }
 };
@@ -72,14 +68,14 @@ export const createPushNotificationButton = () => {
 
   const updateButtonText = (isSubscribed) => {
     button.textContent = isSubscribed
-      ? 'Unsubscribe from Push Notification'
-      : 'Subscribe to Push Notification';
+      ? 'Unsubscribe dari Notifikasi'
+      : 'Subscribe ke Notifikasi';
   };
 
   (async () => {
     if (!('serviceWorker' in navigator)) {
       button.disabled = true;
-      button.textContent = 'Push Not Supported';
+      button.textContent = 'Browser tidak mendukung Push';
       return;
     }
 
